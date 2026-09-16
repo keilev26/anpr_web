@@ -18,12 +18,15 @@ Dashboard de operación: registros ANPR, gestión de usuarios y placas, login.
 
 ```bash
 npm install
-cp .env.example .env.local   # VITE_USE_MOCKS=true por defecto
+cp .env.example .env.local
 npm run dev                  # http://localhost:3000
 ```
 
-Credenciales del mock: **cualquier correo** con la contraseña `anpr12345`
-(definida en `src/mocks/data.ts`).
+Por defecto apunta a la **API real de F2** en `http://localhost:8000`, que debe
+estar corriendo (ver `api/README.md`).
+
+Para trabajar en la UI sin backend, pon `VITE_USE_MOCKS=true`: entonces entra
+con **cualquier correo** y la contraseña `anpr12345` (`src/mocks/data.ts`).
 
 | Comando | Qué hace |
 |---|---|
@@ -72,7 +75,8 @@ src/
 - [x] Paginación por cursor con scroll infinito (ambas vistas)
 - [x] Edición de usuario, incluyendo alta/baja de placas y estado activo
 - [x] Exportar a CSV (respeta filtros, recorre todas las páginas)
-- [ ] Reemplazar `src/types/api.ts` por tipos generados, cuando F2 publique su openapi.json
+- [x] **Hito I1**: conectado a la API real de F2 y verificado extremo a extremo
+- [ ] Reemplazar `src/types/api.ts` por tipos generados desde el openapi.json de F2
 
 ## Terminado cuando
 

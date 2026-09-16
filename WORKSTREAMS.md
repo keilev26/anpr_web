@@ -140,7 +140,7 @@ Los frentes de software se recuperan con horas extra; un pedido de fotoceldas qu
 
 | Hito | Une | Criterio de aceptación |
 |---|---|---|
-| **I1** | F1 + F2 | El dashboard muestra eventos reales desde FastAPI local, con login funcionando |
+| ~~**I1**~~ | F1 + F2 | ✅ **Hecho.** Login, refresh de sesión y CRUD completo verificados a través del proxy |
 | **I2** | F4 + F3 | Se sube un JPEG al Lambda desplegado y devuelve placa + confianza en <2s tibio |
 | **I3** | F5 + F3 + F4 | La Pi captura, sube, recibe veredicto y enciende el LED. **Sin motor.** |
 | **I4** | F5 + F6 | El portón recorre ambos sentidos comandado por la Pi. **En banco o con el portón liberado.** |

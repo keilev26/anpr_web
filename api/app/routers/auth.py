@@ -30,7 +30,11 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         secure=not settings.dev_mode,
         samesite="lax",
         max_age=settings.refresh_token_days * 24 * 3600,
-        path="/auth",
+        # Path="/" y no "/auth": el navegador solo envía una cookie cuando la
+        # ruta de la petición empieza por su Path, y el frontend llama a la API
+        # bajo un prefijo (/api/auth/refresh). Con Path="/auth" la cookie no se
+        # enviaba nunca y el refresh siempre daba 401.
+        path="/",
     )
 
 
@@ -84,7 +88,7 @@ async def refresh(request: Request, response: Response, db: DbSession) -> LoginR
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(response: Response) -> None:
-    response.delete_cookie(REFRESH_COOKIE, path="/auth")
+    response.delete_cookie(REFRESH_COOKIE, path="/")
 
 
 @router.get("/me", response_model=UserOut)

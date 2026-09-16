@@ -72,3 +72,16 @@ async def test_me_devuelve_al_autenticado(client, admin_headers):
     r = await client.get("/auth/me", headers=admin_headers)
     assert r.status_code == 200
     assert r.json()["email"] == "admin@uni.pe"
+
+
+async def test_cookie_de_refresh_tiene_path_raiz(client):
+    """
+    El frontend llama a la API bajo un prefijo (/api/auth/refresh). Con
+    Path=/auth el navegador nunca enviaría la cookie y la sesión se perdería
+    en cada recarga.
+    """
+    r = await client.post(
+        "/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD}
+    )
+    cookie = r.headers["set-cookie"]
+    assert "Path=/;" in cookie or cookie.rstrip().endswith("Path=/"), cookie
