@@ -61,9 +61,7 @@ class Car(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     plate: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"), index=True
-    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     owner: Mapped[User] = relationship(back_populates="cars")
@@ -74,9 +72,7 @@ class EventDetection(Base):
 
     # BIGINT en MySQL por el volumen esperado, pero INTEGER en SQLite: ese
     # motor solo autoincrementa "INTEGER PRIMARY KEY", con BIGINT falla el INSERT.
-    id: Mapped[int] = mapped_column(
-        BigInteger().with_variant(Integer, "sqlite"), primary_key=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
 
     # Texto suelto SIN FK a list_car, a propósito: hay que poder registrar
     # placas NO autorizadas, que por definición no están en la lista blanca.

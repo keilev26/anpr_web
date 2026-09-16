@@ -91,9 +91,7 @@ async def get_user(user_id: int, db: DbSession, _: CurrentUser) -> UserWithCars:
 
 
 @router.patch("/{user_id}", response_model=UserWithCars)
-async def update_user(
-    user_id: int, body: UserUpdate, db: DbSession, _: AdminUser
-) -> UserWithCars:
+async def update_user(user_id: int, body: UserUpdate, db: DbSession, _: AdminUser) -> UserWithCars:
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Usuario no encontrado")

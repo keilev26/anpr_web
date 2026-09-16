@@ -13,11 +13,11 @@ class Holder(BaseModel):
     [
         ("CUB-604", "CUB-604"),
         ("cub-604", "CUB-604"),
-        ("cub604", "CUB-604"),       # el OCR omite el guion
-        ("CUB 604", "CUB-604"),      # espacio en vez de guion
+        ("cub604", "CUB-604"),  # el OCR omite el guion
+        ("CUB 604", "CUB-604"),  # espacio en vez de guion
         (" cub-604 ", "CUB-604"),
         ("c u b 6 0 4", "CUB-604"),
-        ("V1A-882", "V1A-882"),      # segundo carácter numérico, válido en Perú
+        ("V1A-882", "V1A-882"),  # segundo carácter numérico, válido en Perú
     ],
 )
 def test_normaliza_variantes(entrada, esperada):

@@ -10,7 +10,7 @@ const navigation = [
   { name: "Usuarios y Placas", to: "/users-vehicles", icon: UserCheck },
 ]
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -20,7 +20,7 @@ export function Sidebar() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-border bg-sidebar">
+    <div className={cn("flex h-full w-64 flex-col border-r border-border bg-sidebar", className)}>
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-6">
         <img src="/uni_logo.png" alt="UNI" width={40} height={40} />
         <div className="flex flex-col">

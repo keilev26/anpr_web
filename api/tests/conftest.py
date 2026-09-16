@@ -42,20 +42,29 @@ async def seed(session_factory):
     """Un administrador, un docente activo y un estudiante inactivo."""
     async with session_factory() as s:
         admin = User(
-            name="Admin Uno", email="admin@uni.pe", role=Role.administrator,
-            password_hash=hash_password(TEST_PASSWORD), is_active=True,
+            name="Admin Uno",
+            email="admin@uni.pe",
+            role=Role.administrator,
+            password_hash=hash_password(TEST_PASSWORD),
+            is_active=True,
         )
         admin.cars = [Car(plate="CUB-604")]
 
         teacher = User(
-            name="Docente Dos", email="docente@uni.pe", role=Role.teacher,
-            password_hash=hash_password(TEST_PASSWORD), is_active=True,
+            name="Docente Dos",
+            email="docente@uni.pe",
+            role=Role.teacher,
+            password_hash=hash_password(TEST_PASSWORD),
+            is_active=True,
         )
         teacher.cars = [Car(plate="ABC-123")]
 
         inactive = User(
-            name="Baja Tres", email="baja@uni.pe", role=Role.student,
-            password_hash=hash_password(TEST_PASSWORD), is_active=False,
+            name="Baja Tres",
+            email="baja@uni.pe",
+            role=Role.student,
+            password_hash=hash_password(TEST_PASSWORD),
+            is_active=False,
         )
         inactive.cars = [Car(plate="XYZ-789")]
 
@@ -71,9 +80,7 @@ async def client(session_factory, seed):
             yield s
 
     app.dependency_overrides[get_db] = _get_db
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
 

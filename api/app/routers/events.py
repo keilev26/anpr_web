@@ -34,9 +34,7 @@ async def list_events(
     if authorized is not None:
         stmt = stmt.where(EventDetection.authorized.is_(authorized))
     if role is not None:
-        stmt = stmt.where(
-            EventDetection.user_id.in_(select(User.id).where(User.role == role))
-        )
+        stmt = stmt.where(EventDetection.user_id.in_(select(User.id).where(User.role == role)))
     if from_ is not None:
         stmt = stmt.where(EventDetection.detected_at >= from_)
     if to is not None:

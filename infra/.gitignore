@@ -1,0 +1,9 @@
+# Estado de Terraform: contiene el secreto de origen de CloudFront.
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+crash.log
+
+# Artefactos de construcción
+build/

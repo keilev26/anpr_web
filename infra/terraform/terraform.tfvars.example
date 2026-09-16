@@ -1,0 +1,7 @@
+# Copiar a terraform.tfvars (ignorado por git) y completar.
+# La cuenta ya tiene alertas de presupuesto; activar solo si no las tuviera.
+create_budget = false
+# alert_email = "tu-correo@uni.pe"
+# budget_usd  = 5
+# Vacío en el primer apply. Tras subir la imagen: infer_image_tag = "v1"
+infer_image_tag = ""

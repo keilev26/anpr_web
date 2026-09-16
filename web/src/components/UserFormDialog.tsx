@@ -154,7 +154,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="phone">Teléfono</Label>
               <Input id="phone" {...form.register("phone")} />
@@ -165,7 +165,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
                 value={form.watch("role")}
                 onValueChange={(v) => form.setValue("role", v as Role)}
               >
-                <SelectTrigger id="role"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="role" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
                     <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
@@ -182,7 +182,7 @@ export function UserFormDialog({ open, onOpenChange, user }: Props) {
                 value={form.watch("is_active") ? "active" : "inactive"}
                 onValueChange={(v) => form.setValue("is_active", v === "active")}
               >
-                <SelectTrigger id="status"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="status" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Activo</SelectItem>
                   <SelectItem value="inactive">Inactivo — sin acceso a la puerta</SelectItem>

@@ -341,8 +341,12 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Verdict" }
+        "413":
+          description: La ráfaga supera 4 MB (límite de invocación síncrona de Lambda)
         "422":
-          description: Ninguna placa legible en la ráfaga
+          description: Ninguna placa aceptada (nada legible, sin consenso o fotogramas insuficientes)
+        "503":
+          description: Inferencia no disponible. La Pi reintenta y NO abre
 
 components:
   securitySchemes:

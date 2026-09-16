@@ -93,36 +93,39 @@ export default function UsersVehiclesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Usuarios y Placas</h1>
-          <p className="text-muted-foreground">Lista blanca de acceso a la Puerta 2</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Usuarios y Placas</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Lista blanca de acceso a la Puerta 2
+          </p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
+            className="flex-1 sm:flex-none"
             onClick={() => void exportCsv()}
             disabled={isExporting || users.length === 0}
           >
             <Download className="h-4 w-4" />
             {isExporting ? "Exportando…" : "Exportar CSV"}
           </Button>
-          <Button onClick={openCreate}>
+          <Button className="flex-1 sm:flex-none" onClick={openCreate}>
             <UserPlus className="h-4 w-4" />
             Nuevo usuario
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="gap-4 py-4 sm:gap-6 sm:py-6">
+        <CardHeader className="px-4 sm:px-6">
           <CardTitle>Registrados</CardTitle>
           <CardDescription>
             {isPending ? "Cargando…" : "Busca por nombre, correo, teléfono o placa"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -135,7 +138,7 @@ export default function UsersVehiclesPage() {
               />
             </div>
             <Select value={role} onValueChange={(v) => setRole(v as Role | "all")}>
-              <SelectTrigger className="sm:w-52" aria-label="Filtrar por rol">
+              <SelectTrigger className="w-full sm:w-52" aria-label="Filtrar por rol">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -156,87 +159,133 @@ export default function UsersVehiclesPage() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Correo</TableHead>
-                      <TableHead>Rol</TableHead>
-                      <TableHead>Placas</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="w-24" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isPending ? (
-                      Array.from({ length: 6 }, (_, i) => (
-                        <TableRow key={i}>
-                          <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
-                        </TableRow>
-                      ))
-                    ) : users.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                          {q || role !== "all"
-                            ? "Ningún usuario coincide con el filtro."
-                            : "Todavía no hay usuarios."}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      users.map((u) => (
-                        <TableRow key={u.id} className={u.is_active ? "" : "opacity-60"}>
-                          <TableCell className="font-medium">{u.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{u.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{ROLE_LABELS[u.role]}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {u.cars.length === 0 ? (
-                                <span className="text-muted-foreground">—</span>
-                              ) : (
-                                u.cars.map((c) => (
-                                  <Badge key={c.id} variant="outline" className="font-mono">
-                                    {c.plate}
-                                  </Badge>
-                                ))
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={
-                                u.is_active ? "text-sm" : "text-sm text-muted-foreground"
-                              }
+              {isPending ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : users.length === 0 ? (
+                <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">
+                  {q || role !== "all"
+                    ? "Ningún usuario coincide con el filtro."
+                    : "Todavía no hay usuarios."}
+                </div>
+              ) : (
+                <>
+                  {/* Celular: una tarjeta por persona. La tabla de 6 columnas no cabe. */}
+                  <ul className="divide-y rounded-lg border md:hidden">
+                    {users.map((u) => (
+                      <li
+                        key={u.id}
+                        className={`space-y-2 px-4 py-3 ${u.is_active ? "" : "opacity-60"}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{u.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Editar a ${u.name}`}
+                              onClick={() => openEdit(u)}
                             >
-                              {u.is_active ? "Activo" : "Inactivo"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                variant="ghost" size="icon"
-                                aria-label={`Editar a ${u.name}`}
-                                onClick={() => openEdit(u)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost" size="icon"
-                                aria-label={`Eliminar a ${u.name}`}
-                                onClick={() => setToDelete(u)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Eliminar a ${u.name}`}
+                              onClick={() => setToDelete(u)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge variant="secondary">{ROLE_LABELS[u.role]}</Badge>
+                          {u.cars.map((c) => (
+                            <Badge key={c.id} variant="outline" className="font-mono">
+                              {c.plate}
+                            </Badge>
+                          ))}
+                          {!u.is_active && (
+                            <span className="text-xs text-muted-foreground">Inactivo</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="hidden overflow-x-auto rounded-lg border md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Correo</TableHead>
+                          <TableHead>Rol</TableHead>
+                          <TableHead>Placas</TableHead>
+                          <TableHead>Estado</TableHead>
+                          <TableHead className="w-24" />
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((u) => (
+                          <TableRow key={u.id} className={u.is_active ? "" : "opacity-60"}>
+                            <TableCell className="font-medium">{u.name}</TableCell>
+                            <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{ROLE_LABELS[u.role]}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {u.cars.length === 0 ? (
+                                  <span className="text-muted-foreground">—</span>
+                                ) : (
+                                  u.cars.map((c) => (
+                                    <Badge key={c.id} variant="outline" className="font-mono">
+                                      {c.plate}
+                                    </Badge>
+                                  ))
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={u.is_active ? "text-sm" : "text-sm text-muted-foreground"}
+                              >
+                                {u.is_active ? "Activo" : "Inactivo"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Editar a ${u.name}`}
+                                  onClick={() => openEdit(u)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Eliminar a ${u.name}`}
+                                  onClick={() => setToDelete(u)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
 
               {!isPending && users.length > 0 && (
                 <InfiniteFooter

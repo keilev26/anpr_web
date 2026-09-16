@@ -26,6 +26,7 @@ def _form(plate_uuid: str | None = None):
 def reader_devuelve():
     def _set(plate, confidence=0.95):
         app.dependency_overrides[get_plate_reader] = lambda: StubPlateReader(plate, confidence)
+
     yield _set
     app.dependency_overrides.pop(get_plate_reader, None)
 
@@ -123,9 +124,9 @@ async def test_filtro_de_eventos_por_autorizacion(client, admin_headers, reader_
     reader_devuelve("ZZZ-999")
     await client.post("/v1/detections", headers=DEVICE, data=_form(), files=_frames())
 
-    solo_ok = (await client.get(
-        "/events", headers=admin_headers, params={"authorized": "true"}
-    )).json()["items"]
+    solo_ok = (
+        await client.get("/events", headers=admin_headers, params={"authorized": "true"})
+    ).json()["items"]
     assert len(solo_ok) == 1 and solo_ok[0]["plate"] == "CUB-604"
 
 

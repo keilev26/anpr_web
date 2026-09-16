@@ -25,13 +25,30 @@ datos. Para MySQL, cambia `DATABASE_URL` a `mysql+aiomysql://user:pass@host:3306
 
 | Comando | Qué hace |
 |---|---|
-| `pytest` | 49 tests |
+| `pytest` | 67 tests |
 | `ruff check app tests scripts` | Lint |
 | `python scripts/check_contract.py` | Verifica que la API coincide con el contrato |
 | `alembic revision --autogenerate -m "..."` | Nueva migración |
 
 > **Nota del entorno:** esta máquina tiene ROS en `PYTHONPATH`, y sus plugins de
 > pytest rompen la colección de tests. Usa `PYTHONPATH= pytest`.
+
+## Despliegue en AWS Lambda
+
+`app/lambda_handler.py` expone la app con Mangum detrás de CloudFront. Guía completa
+en `infra/README.md`. Ajustes que solo se activan en AWS (vacíos en local):
+
+| Variable | Efecto |
+|---|---|
+| `SSM_PREFIX` | Carga los secretos desde SSM Parameter Store al arrancar |
+| `DB_SSL_CA` | TLS hacia la base de datos con la CA de Aiven |
+| `DB_NULLPOOL` | Sin pool: evita reutilizar conexiones entre invocaciones |
+| `ORIGIN_VERIFY_SECRET` | Rechaza con 403 lo que no llegue desde CloudFront |
+| `INFER_FUNCTION_NAME` | Usa el Lambda de inferencia en vez del stub |
+
+Respuestas nuevas de `POST /v1/detections`: **413** si la ráfaga supera 4 MB (el
+límite de invocación síncrona de Lambda es 6 MB y los frames van en base64), y
+**503** si la inferencia falla, para que la Pi reintente sin abrir.
 
 ## Estructura
 

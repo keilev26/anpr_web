@@ -2,9 +2,7 @@ from tests.conftest import TEST_PASSWORD
 
 
 async def test_login_correcto_devuelve_token_y_cookie(client):
-    r = await client.post(
-        "/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD}
-    )
+    r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
     assert r.status_code == 200
     body = r.json()
     assert body["token_type"] == "bearer"
@@ -13,9 +11,7 @@ async def test_login_correcto_devuelve_token_y_cookie(client):
 
 
 async def test_cookie_de_refresh_es_httponly(client):
-    r = await client.post(
-        "/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD}
-    )
+    r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
     cookie = r.headers["set-cookie"]
     assert "HttpOnly" in cookie, "un XSS podría robar la sesión sin HttpOnly"
 
@@ -34,9 +30,7 @@ async def test_usuario_inexistente_da_el_mismo_error(client):
 
 
 async def test_usuario_inactivo_no_entra(client):
-    r = await client.post(
-        "/auth/login", json={"email": "baja@uni.pe", "password": TEST_PASSWORD}
-    )
+    r = await client.post("/auth/login", json={"email": "baja@uni.pe", "password": TEST_PASSWORD})
     assert r.status_code == 401
 
 
@@ -80,8 +74,6 @@ async def test_cookie_de_refresh_tiene_path_raiz(client):
     Path=/auth el navegador nunca enviaría la cookie y la sesión se perdería
     en cada recarga.
     """
-    r = await client.post(
-        "/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD}
-    )
+    r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
     cookie = r.headers["set-cookie"]
     assert "Path=/;" in cookie or cookie.rstrip().endswith("Path=/"), cookie

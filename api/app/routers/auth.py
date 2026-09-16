@@ -55,8 +55,10 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> LoginR
 
     # Mismo mensaje y mismo coste tanto si el correo no existe como si la
     # contraseña falla: distinguirlos permitiría enumerar usuarios.
-    if user is None or not user.password_hash or not verify_password(
-        body.password, user.password_hash
+    if (
+        user is None
+        or not user.password_hash
+        or not verify_password(body.password, user.password_hash)
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas")
 

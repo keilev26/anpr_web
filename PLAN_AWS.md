@@ -167,6 +167,79 @@ Los costos fijos dominan: el volumen casi no mueve la aguja.
 
 A 5.000/día conviene revisar: aparece la necesidad de RDS Proxy (~$22/mes) por agotamiento de conexiones desde Lambda.
 
+### Escenario de prueba — costo mínimo
+
+Para validar el sistema antes de producción. Volumen supuesto: **decenas de
+eventos al día**, pruebas manuales. Objetivo: **~$0-1 al mes**.
+
+> **Capa gratuita: verificar antes de decidir.** AWS cambió su capa gratuita en
+> julio de 2025 (las cuentas nuevas reciben créditos durante un plazo limitado, y
+> algunas ofertas "12 meses gratis" desaparecieron). Las cifras de abajo usan
+> precios de lista de us-east-1 y solo cuentan como gratuito lo que AWS mantiene
+> como *Always Free*. Confirmar en https://aws.amazon.com/free con la cuenta real.
+
+#### La trampa que hay que evitar: VPC + NAT Gateway
+
+RDS vive dentro de una VPC. Un Lambda que la use también tiene que estar en la
+VPC, y para salir a internet desde ahí necesita un **NAT Gateway: ~$33/mes**
+($0,045/h + tráfico), más que todo el resto del sistema. El plan original no lo
+contemplaba. **En la fase de prueba, nada va dentro de una VPC.**
+
+#### Servicio por servicio
+
+| Servicio | Producción (arriba) | Prueba | USD/mes prueba | Por qué es seguro recortar |
+|---|---|---|---|---|
+| Base de datos | RDS db.t4g.micro — $14.00 | **BD gestionada externa, plan gratuito** (ver opciones) | 0.00 | Sin VPC ni NAT; la API ya es agnóstica de motor |
+| Entrada HTTP | API Gateway — $0.07 | **Lambda Function URL** | 0.00 | Gratis; la API ya valida `X-Device-Key` en código |
+| Secretos | Secrets Manager — $0.80 | **SSM Parameter Store** (SecureString estándar) | 0.00 | Mismo cifrado con KMS gestionado, sin rotación automática |
+| Dominio | Route 53 — $0.50 | **Sin dominio**: URL de CloudFront | 0.00 | Solo cosmético en pruebas |
+| Telemetría Pi | IoT Core — $0.10 | **Ninguna** | 0.00 | El veredicto va por HTTP; telemetría es de producción |
+| Logs | CloudWatch — $2.00 | **Retención de 7 días** | 0.00 | Dentro de los 5 GB *Always Free* a este volumen |
+| Lambda tibio | EventBridge cada 5 min | **Sin ping**, aceptar cold start | 0.00 | 10-20 s de más solo en la primera petición |
+| Lambda inferencia | $4.05 | Igual (10 GB) | 0.00 | 400.000 GB-s/mes *Always Free*: sobra |
+| Lambda API | $0.30 | Igual | 0.00 | Ídem |
+| ECR | $0.30 | Igual | ~0.30 | Imagen de ~3 GB; es lo único que se paga seguro |
+| S3 + CloudFront (SPA + frames) | $0.60 | Igual, frames con expiración a 7 días | ~0.05 | CloudFront: 1 TB/mes *Always Free* |
+| **Total** | **≈ $23** | | **≈ $0.35** | |
+
+#### Base de datos: opciones sin VPC
+
+| Opción | USD/mes | Cambios de código | Riesgos |
+|---|---|---|---|
+| **Aiven, plan gratuito (MySQL)** | 0 | **Ninguno**: el legacy ya usaba Aiven MySQL | 1 CPU / 1 GB RAM / 1 GB disco; regiones predeterminadas; se apaga tras inactividad (con aviso) |
+| Neon o Supabase, plan gratuito (PostgreSQL) | 0 | Cambiar driver a `asyncpg` y repasar la migración | Fuera de AWS; primera consulta tras inactividad más lenta |
+| RDS encendida solo al probar | ~$2.30 + $0.016/h | Ninguno | **Exige VPC**: vuelve la trampa del NAT, o exponer RDS a internet ($3.65/mes por la IPv4 y más superficie de ataque) |
+
+Recomendación para la prueba: **Aiven gratuito** (1 CPU, 1 GB RAM, 1 GB de disco).
+Su plan gratuito solo ofrece regiones predeterminadas, así que conviene la más cercana
+a us-east-1; si queda lejos, cada consulta suma latencia (aceptable en pruebas).
+Se apaga tras un periodo sin actividad, con aviso previo por correo.
+
+#### Detalle que no es de costo pero rompe la prueba
+
+El frontend guarda la sesión en una cookie `HttpOnly` con `SameSite=lax`. Si el
+SPA se sirve desde un dominio (CloudFront) y la API desde otro (la Function URL),
+**el navegador no envía la cookie** y la sesión se pierde al recargar: el mismo
+tipo de fallo que apareció en el hito I1. Solución sin coste: **una sola
+distribución de CloudFront con dos orígenes**, S3 para el SPA y la Function URL
+para `/api/*`, así todo queda bajo el mismo dominio.
+
+#### Protección contra sorpresas
+
+- **AWS Budgets** con alerta desde el primer centavo. En la cuenta de la prueba ya
+  existen *Zero-Spend* ($0,01) y *Monthly* ($10), así que Terraform no crea otro.
+- **Cost Anomaly Detection** activado (gratuito).
+- Etiquetar todo con `proyecto=anpr` para poder borrarlo de una vez con Terraform.
+
+#### Qué se pierde frente a producción
+
+| Recorte | Consecuencia | Cuándo revertirlo |
+|---|---|---|
+| Sin ping de calentamiento | La primera detección tras un rato tarda 10-20 s más | Antes de operar la puerta real |
+| Sin IoT Core | No hay telemetría ni alertas de la Pi caída | Con F5 en campo |
+| BD externa gratuita | Sin SLA, recursos mínimos | Antes de datos reales de la universidad |
+| Logs 7 días | Menos historial para depurar | Producción |
+
 ### Costos de hardware, una sola vez
 
 | Ítem | USD aprox. |

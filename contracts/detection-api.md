@@ -43,7 +43,9 @@ el requisito. **La Pi debe enviar al menos 3** para tener margen si uno sale bor
 |---|---|---|
 | 400 | Ráfaga inválida | Descarta, registra fallo |
 | 401 | Credencial de dispositivo inválida | Alerta, no reintenta |
+| 413 | Ráfaga de más de 4 MB (límite de Lambda) | Reducir resolución o fotogramas; no abre |
 | 422 | Ninguna placa aceptada: nada legible, sin consenso o fotogramas insuficientes | Registra, no abre |
+| 503 | Inferencia no disponible | Encola y reintenta; **no abre** |
 | 5xx / timeout | Falla de nube | Encola y reintenta; **no abre** |
 
 ## Presupuesto de latencia

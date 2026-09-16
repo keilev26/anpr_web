@@ -3,6 +3,9 @@
 Detección y lectura de placas. El modelo **no corre en la Raspberry**: vive en un
 Lambda de AWS (ver `PLAN_AWS.md`).
 
+> **Hay pendientes manuales que bloquean cerrar F4** — etiquetar placas y tomar
+> fotos reales desde la puerta. Ver [Pendientes](#pendientes) al final.
+
 ## Qué hay aquí
 
 ```
@@ -290,15 +293,84 @@ el Lambda Runtime Interface Emulator.
 - [x] Vista de puerta generada y verificada a ojo
 - [x] Línea base de `best.pt` — decisión: no reentrenar por ahora
 - [x] Prueba visual de lectura
-- [ ] **Benchmark de lectura etiquetado** (~30 imágenes con su placa real)
-- [ ] **Medición de píxeles con fotos reales de la cámara Sony**
-- [ ] Exportar a ONNX y medir mAP
-- [ ] Construir la imagen y probarla con el emulador de Lambda (con F3)
+- [ ] **Benchmark de lectura etiquetado** — ver Pendientes 1
+- [ ] **Medición de píxeles con fotos reales de la cámara Sony** — ver Pendientes 2
+- [ ] Exportar a ONNX y medir mAP — ver Pendientes 4
+- [ ] Construir la imagen y probarla con el emulador de Lambda — ver Pendientes 5
 
-## Lo que bloquea terminar F4
+## Pendientes
 
-1. **Fotos de placas desde la posición real de la cámara.** Sin ellas no hay
-   medición de píxeles ni benchmark. Es lo único que no puede resolverse
-   escribiendo código.
-2. **Espacio en disco.** El stack de export son ~2-3 GB y la máquina está al 95%.
-3. **El `data.yaml` del dataset** de Colab, para poder medir mAP con `model.val()`.
+Actualizado el 2026-09-16. Los dos primeros requieren trabajo manual y son las
+mediciones que más pueden cambiar las decisiones siguientes.
+
+### 1. Benchmark de lectura con placas etiquetadas — lo hace una persona
+
+**Por qué:** la prueba visual dio 38/51 "válidas", pero de 10 revisadas a ojo 2
+estaban mal leídas. Sin etiquetas no se conoce la tasa real de acierto ni, sobre
+todo, la de **placas mal leídas**, que es la métrica que importa para la puerta.
+
+**Cómo:**
+1. Elegir ~30 recortes de `datasets/peru-gate-view/test/images/` donde la placa
+   se lea a simple vista (y algunos difíciles: de noche, borrosos, en ángulo).
+2. Copiarlos a una carpeta nueva renombrados con su placa real:
+   `CUB-604_01.jpg`, `DPD-127_01.jpg`…
+3. Exportar el modelo a ONNX (pendiente 4), instalar ONNX Runtime en el entorno
+   de OCR (no lo trae) y ejecutar:
+   ```bash
+   UV_CACHE_DIR=/data/cache/uv VIRTUAL_ENV=/data/anpr/venvs/ml-ocr uv pip install onnxruntime
+   PADDLE_PDX_CACHE_HOME=/data/cache/paddlex \
+   /data/anpr/venvs/ml-ocr/bin/python scripts/benchmark.py --images <carpeta> --model models/best.onnx
+   ```
+
+**Decide:** si la tasa de mal leídas es aceptable, o si hay que subir
+`MIN_AGREEMENT`, cambiar de modelo OCR o reentrenar.
+
+### 2. Fotos reales desde la cámara Sony — lo hace una persona, en la puerta
+
+**Por qué:** la línea base mostró que el tamaño de la placa lo decide todo
+(0,555 a 640 frente a 0,954 en vista de puerta). Los recortes simulan el
+encuadre, **no la resolución de la Sony**, y el legacy pedía un liveview reducido
+(`startLiveviewWithSize(["M"])`).
+
+**Cómo:**
+1. Montar la cámara **en su posición definitiva**, con el liveview que se va a usar.
+2. Capturar 20-30 fotos con autos detenidos donde paran de verdad. De día y de noche.
+3. Ejecutar:
+   ```bash
+   /data/anpr/venvs/ml-train/bin/python scripts/measure_plate_px.py --images <carpeta> --model ../legacy/mqtt-camara-main/best.pt
+   ```
+
+**Decide:** si la mediana queda por debajo de ~60-80 px, el cuello de botella es
+**la cámara** y ningún trabajo de modelo lo arregla. Si queda por encima, ajustar
+`make_gate_view.py --plate-px` al rango real y repetir la línea base.
+
+### 3. Formatos de placa distintos al de auto particular
+
+El dataset incluye motos, que el post-procesado rechaza. Ver
+`contracts/plate-format.md`: decidir si entran motos por la Puerta 2.
+
+### 4. Exportar `best.pt` a ONNX
+
+```bash
+/data/anpr/venvs/ml-train/bin/python scripts/export_onnx.py \
+    --model ../legacy/mqtt-camara-main/best.pt --data datasets/peru-plates/eval/valtest.yaml
+```
+
+Comprobar que el mAP del ONNX no cae respecto a la línea base (0,555 a 640).
+Necesario para el benchmark y para la imagen de Lambda.
+
+### 5. Construir y probar la imagen de Lambda — con F3
+
+1. Mover el almacenamiento de Docker a `/data` antes de construir: la imagen
+   pesa varios GB y la partición de Ubuntu tiene ~6,7 GB libres.
+2. Preparar `models/best.onnx` (pendiente 4) y `models/paddle/` con los dos
+   modelos de `src/anpr_ml/ocr_settings.py`, copiados de
+   `/data/cache/paddlex/official_models/`.
+3. `docker build` y probar con el Lambda Runtime Interface Emulator, enviando
+   una ráfaga de 3 fotogramas.
+
+### 6. Reentrenar — solo si los pendientes 1 o 2 lo justifican
+
+`scripts/train.py` está listo. Hoy no se reentrena porque la vista de puerta ya
+supera 0,90. Antes de lanzarlo, reducir las fotos de calle a 1280 px de lado
+mayor: bajaría el entrenamiento de ~4-6 h a ~2 h en la RTX 3050.

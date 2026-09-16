@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 from datetime import UTC, datetime
@@ -5,24 +6,39 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.core.deps import DbSession, verify_device
 from app.db.models import EventDetection
 from app.schemas.common import normalize_plate
 from app.schemas.event import GateCommand, Verdict
 from app.schemas.user import UserOut
 from app.services.authorization import resolve_plate
-from app.services.plate_reader import PlateReader, StubPlateReader
+from app.services.plate_reader import (
+    InferenceError,
+    LambdaPlateReader,
+    PlateReader,
+    StubPlateReader,
+)
 
 router = APIRouter(prefix="/v1", tags=["detections"])
+log = logging.getLogger("anpr.detections")
 
 GATE_COMMAND_TTL_S = 10
 
-# F4 sustituye esto por el cliente del Lambda de inferencia. Se inyecta como
-# dependencia para que los tests puedan fijar la lectura sin tocar el router.
-_reader: PlateReader = StubPlateReader()
+# Límite del cuerpo de una invocación síncrona de Lambda: 6 MB. Los frames viajan
+# en base64 (+33 %), así que se deja margen.
+MAX_FRAMES_BYTES = 4 * 1024 * 1024
+
+_reader: PlateReader | None = None
 
 
 def get_plate_reader() -> PlateReader:
+    """Lambda de inferencia si está configurado; si no, stub (desarrollo y tests).
+    Se crea una vez: el cliente de boto3 es costoso de construir."""
+    global _reader
+    if _reader is None:
+        fn = get_settings().infer_function_name
+        _reader = LambdaPlateReader(fn) if fn else StubPlateReader()
     return _reader
 
 
@@ -70,11 +86,23 @@ async def create_detection(
             latency_ms=int((time.perf_counter() - started) * 1000),
         )
 
-    raw_plate, confidence = await reader.read([await f.read() for f in frames])
-    if raw_plate is None:
+    datos = [await f.read() for f in frames]
+    if sum(len(d) for d in datos) > MAX_FRAMES_BYTES:
         raise HTTPException(
-            422, "Ninguna placa legible en la ráfaga"
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            "La ráfaga supera 4 MB: reducir resolución o fotogramas",
         )
+    try:
+        raw_plate, confidence = await reader.read(datos)
+    except InferenceError:
+        # 503 y no 500 genérico: el contrato dice que ante 5xx la Pi reintenta y
+        # NO abre. Se registra con traza para diagnosticar el Lambda de inferencia.
+        log.exception("Fallo del Lambda de inferencia en el evento %s", event_id)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Inferencia no disponible, reintentar"
+        ) from None
+    if raw_plate is None:
+        raise HTTPException(422, "Ninguna placa legible en la ráfaga")
 
     plate = normalize_plate(raw_plate)
     authorized, owner = await resolve_plate(db, plate)
@@ -100,8 +128,6 @@ async def create_detection(
         confidence=confidence,
         authorized=authorized,
         user=UserOut.model_validate(owner) if owner else None,
-        command=GateCommand(
-            action="open" if authorized else "deny", ttl_s=GATE_COMMAND_TTL_S
-        ),
+        command=GateCommand(action="open" if authorized else "deny", ttl_s=GATE_COMMAND_TTL_S),
         latency_ms=latency,
     )

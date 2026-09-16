@@ -1,3 +1,4 @@
+import hmac
 import logging
 from contextlib import asynccontextmanager
 
@@ -39,6 +40,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def verify_origin(request: Request, call_next):
+    """
+    Bloquea el acceso directo a la Function URL, que es pública.
+
+    CloudFront añade `X-Origin-Verify` con un secreto; sin él, 403. Se descartó la
+    alternativa "oficial" (OAC para Function URLs) porque obliga a que el cliente
+    firme el hash del cuerpo en cada POST, y ni el navegador ni la Pi lo hacen.
+    """
+    secret = get_settings().origin_verify_secret
+    if secret and not hmac.compare_digest(request.headers.get("x-origin-verify", ""), secret):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN, content={"detail": "Acceso directo no permitido"}
+        )
+    return await call_next(request)
 
 
 @app.exception_handler(Exception)

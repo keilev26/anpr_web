@@ -85,36 +85,46 @@ export default function RecordsPage() {
   })
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-start justify-between">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Registros ANPR</h1>
-          <p className="text-muted-foreground">Historial de detecciones en la Puerta 2</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Registros ANPR</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Historial de detecciones en la Puerta 2
+          </p>
         </div>
         <div className="flex gap-2">
           <Button
-            variant="outline" size="sm"
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
             onClick={() => void exportCsv()}
             disabled={isExporting || events.length === 0}
           >
             <Download className="h-4 w-4" />
             {isExporting ? "Exportando…" : "Exportar CSV"}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
             <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
             Actualizar
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="gap-4 py-4 sm:gap-6 sm:py-6">
+        <CardHeader className="px-4 sm:px-6">
           <CardTitle>Detecciones</CardTitle>
           <CardDescription>
             {isPending ? "Cargando…" : "Detecciones más recientes primero"}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -127,7 +137,7 @@ export default function RecordsPage() {
               />
             </div>
             <Select value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
-              <SelectTrigger className="sm:w-48" aria-label="Filtrar por estado">
+              <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por estado">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -147,38 +157,64 @@ export default function RecordsPage() {
                 Reintentar
               </Button>
             </div>
+          ) : isPending ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : events.length === 0 ? (
+            <div className="rounded-lg border py-10 text-center text-sm text-muted-foreground">
+              {plate || status !== "all"
+                ? "Ningún registro coincide con el filtro."
+                : "Todavía no hay detecciones."}
+            </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Placa</TableHead>
-                    <TableHead>Fecha y hora</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Confianza</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isPending ? (
-                    Array.from({ length: 5 }, (_, i) => (
-                      <TableRow key={i}>
-                        <TableCell colSpan={6}>
-                          <Skeleton className="h-6 w-full" />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : events.length === 0 ? (
+            <>
+              {/* Celular: tarjetas tocables. Una tabla de 6 columnas no cabe en 390 px. */}
+              <ul className="divide-y rounded-lg border md:hidden">
+                {events.map((ev) => (
+                  <li key={ev.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(ev)}
+                      aria-label={`Ver detalle de ${ev.plate}`}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-mono font-semibold">{ev.plate}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {formatDateTime(ev.detected_at)} ·{" "}
+                          {ev.user ? ROLE_LABELS[ev.user.role] : "Desconocido"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <Badge variant={ev.authorized ? "default" : "destructive"}>
+                          {ev.authorized ? "Autorizado" : "Denegado"}
+                        </Badge>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {formatConfidence(ev.confidence)}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="hidden overflow-x-auto rounded-lg border md:block">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        {plate || status !== "all"
-                          ? "Ningún registro coincide con el filtro."
-                          : "Todavía no hay detecciones."}
-                      </TableCell>
+                      <TableHead>Placa</TableHead>
+                      <TableHead>Fecha y hora</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-right">Confianza</TableHead>
+                      <TableHead className="w-12" />
                     </TableRow>
-                  ) : (
-                    events.map((ev) => (
+                  </TableHeader>
+                  <TableBody>
+                    {events.map((ev) => (
                       <TableRow key={ev.id}>
                         <TableCell className="font-mono font-medium">{ev.plate}</TableCell>
                         <TableCell className="text-muted-foreground">
@@ -206,11 +242,11 @@ export default function RecordsPage() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
 
           {!isPending && !isError && events.length > 0 && (

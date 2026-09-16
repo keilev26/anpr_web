@@ -3,8 +3,12 @@ async def test_alta_guarda_el_rol(client, admin_headers):
     r = await client.post(
         "/users",
         headers=admin_headers,
-        json={"name": "Nuevo Docente", "email": "nuevo@uni.pe",
-              "role": "teacher", "plates": ["QRS-111"]},
+        json={
+            "name": "Nuevo Docente",
+            "email": "nuevo@uni.pe",
+            "role": "teacher",
+            "plates": ["QRS-111"],
+        },
     )
     assert r.status_code == 201
     assert r.json()["role"] == "teacher"
@@ -25,8 +29,12 @@ async def test_alta_es_transaccional(client, admin_headers):
     r = await client.post(
         "/users",
         headers=admin_headers,
-        json={"name": "Colisión", "email": "colision@uni.pe",
-              "role": "student", "plates": ["CUB-604"]},
+        json={
+            "name": "Colisión",
+            "email": "colision@uni.pe",
+            "role": "student",
+            "plates": ["CUB-604"],
+        },
     )
     assert r.status_code == 409
 
@@ -36,7 +44,8 @@ async def test_alta_es_transaccional(client, admin_headers):
 
 async def test_email_duplicado_da_409(client, admin_headers):
     r = await client.post(
-        "/users", headers=admin_headers,
+        "/users",
+        headers=admin_headers,
         json={"name": "Otro", "email": "admin@uni.pe", "role": "student"},
     )
     assert r.status_code == 409
@@ -55,7 +64,8 @@ async def test_filtro_por_rol(client, admin_headers):
 
 async def test_edicion(client, admin_headers, seed):
     r = await client.patch(
-        f"/users/{seed['teacher']}", headers=admin_headers,
+        f"/users/{seed['teacher']}",
+        headers=admin_headers,
         json={"name": "Docente Editado", "is_active": False},
     )
     assert r.status_code == 200
@@ -76,13 +86,16 @@ async def test_no_puede_eliminarse_a_si_mismo(client, admin_headers, seed):
 
 
 async def test_no_admin_no_puede_crear_ni_borrar(client, teacher_headers, seed):
-    assert (await client.post(
-        "/users", headers=teacher_headers,
-        json={"name": "Z", "email": "z@uni.pe", "role": "student"},
-    )).status_code == 403
-    assert (await client.delete(
-        f"/users/{seed['inactive']}", headers=teacher_headers
-    )).status_code == 403
+    assert (
+        await client.post(
+            "/users",
+            headers=teacher_headers,
+            json={"name": "Z", "email": "z@uni.pe", "role": "student"},
+        )
+    ).status_code == 403
+    assert (
+        await client.delete(f"/users/{seed['inactive']}", headers=teacher_headers)
+    ).status_code == 403
 
 
 async def test_no_admin_si_puede_leer(client, teacher_headers):
@@ -93,7 +106,8 @@ async def test_paginacion_por_cursor(client, admin_headers):
     # 3 del seed + 22 nuevos = 25
     for i in range(22):
         await client.post(
-            "/users", headers=admin_headers,
+            "/users",
+            headers=admin_headers,
             json={"name": f"U{i}", "email": f"u{i}@uni.pe", "role": "student"},
         )
 

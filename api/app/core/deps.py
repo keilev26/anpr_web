@@ -50,9 +50,7 @@ async def verify_device(
 ) -> None:
     """Autenticación del dispositivo de campo para POST /v1/detections."""
     if not settings.device_api_key:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "DEVICE_API_KEY no configurada"
-        )
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "DEVICE_API_KEY no configurada")
     # Comparación en tiempo constante para no filtrar la clave por temporización.
     import hmac
 
