@@ -1,0 +1,525 @@
+openapi: 3.1.0
+info:
+  title: ANPR FIM-UNI API
+  version: 1.0.0
+  description: |
+    Contrato entre F2 (API) y F1 (Web). El camino crítico Pi -> nube
+    (`POST /v1/detections`) está documentado aparte en `detection-api.md`
+    y se incluye aquí para que F2 tenga una sola especificación.
+
+    **Este archivo se modifica solo por acuerdo entre F1 y F2.**
+
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+  - url: https://api.anpr.fim.uni.edu.pe
+    description: Producción
+
+tags:
+  - name: auth
+  - name: users
+  - name: cars
+  - name: events
+  - name: detections
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [auth]
+      summary: Estado del servicio
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  db:     { type: boolean }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Iniciar sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+      responses:
+        "200":
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Renovar el access token
+      security: []
+      description: El refresh token viaja en cookie HttpOnly.
+      responses:
+        "200":
+          description: Token renovado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Cerrar sesión
+      responses:
+        "204": { description: Sesión cerrada }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Usuario autenticado
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users:
+    get:
+      tags: [users]
+      summary: Listar usuarios con sus placas
+      parameters:
+        - { in: query, name: q,      schema: { type: string }, description: Busca en nombre, email, teléfono y placa }
+        - { in: query, name: role,   schema: { $ref: "#/components/schemas/Role" } }
+        - { in: query, name: limit,  schema: { type: integer, default: 50, maximum: 200 } }
+        - { in: query, name: cursor, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/UserWithCars" }
+    post:
+      tags: [users]
+      summary: Crear usuario con sus placas
+      description: |
+        **Transaccional.** Usuario y placas se crean juntos o no se crea nada.
+        Reemplaza el flujo del legacy, que creaba el usuario, luego el carro, y
+        ante un fallo intentaba un "rollback best-effort" con un catch vacío.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserCreate" }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserWithCars" }
+        "409":
+          description: Email o placa ya registrados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /users/{user_id}:
+    parameters:
+      - { in: path, name: user_id, required: true, schema: { type: integer } }
+    get:
+      tags: [users]
+      summary: Obtener un usuario
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserWithCars" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [users]
+      summary: Actualizar un usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UserUpdate" }
+      responses:
+        "200":
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserWithCars" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [users]
+      summary: Eliminar un usuario y sus placas (ON DELETE CASCADE)
+      responses:
+        "204": { description: Eliminado }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /cars:
+    get:
+      tags: [cars]
+      summary: Listar placas
+      parameters:
+        - { in: query, name: user_id, schema: { type: integer } }
+        - { in: query, name: limit,   schema: { type: integer, default: 50 } }
+        - { in: query, name: cursor,  schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Car" }
+    post:
+      tags: [cars]
+      summary: Registrar una placa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CarCreate" }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Car" }
+        "409":
+          description: La placa ya está registrada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /cars/{car_id}:
+    parameters:
+      - { in: path, name: car_id, required: true, schema: { type: integer } }
+    patch:
+      tags: [cars]
+      summary: Actualizar una placa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CarCreate" }
+      responses:
+        "200":
+          description: Actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Car" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [cars]
+      summary: Eliminar una placa
+      responses:
+        "204": { description: Eliminada }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /cars/by-plate/{plate}:
+    get:
+      tags: [cars]
+      summary: Consultar si una placa está autorizada
+      description: Reemplaza al `POST /v1/authorization` del legacy, que era una consulta disfrazada de POST.
+      parameters:
+        - { in: path, name: plate, required: true, schema: { $ref: "#/components/schemas/Plate" } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authorized: { type: boolean }
+                  car:        { $ref: "#/components/schemas/Car" }
+                  user:       { $ref: "#/components/schemas/User" }
+
+  /events:
+    get:
+      tags: [events]
+      summary: Historial de detecciones
+      description: |
+        Paginación por cursor. **Los filtros se aplican en SQL**, no en el cliente:
+        el legacy devolvía la tabla completa ordenada por id y filtraba en el navegador.
+      parameters:
+        - { in: query, name: plate,      schema: { type: string }, description: Coincidencia parcial }
+        - { in: query, name: authorized, schema: { type: boolean } }
+        - { in: query, name: role,       schema: { $ref: "#/components/schemas/Role" } }
+        - { in: query, name: from,       schema: { type: string, format: date-time } }
+        - { in: query, name: to,         schema: { type: string, format: date-time } }
+        - { in: query, name: limit,      schema: { type: integer, default: 50, maximum: 200 } }
+        - { in: query, name: cursor,     schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Event" }
+
+  /events/{event_id}:
+    get:
+      tags: [events]
+      summary: Detalle de una detección
+      parameters:
+        - { in: path, name: event_id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/detections:
+    post:
+      tags: [detections]
+      summary: Camino crítico Pi -> nube
+      description: Ver `contracts/detection-api.md` para el detalle y el presupuesto de latencia.
+      security:
+        - deviceAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [gate_id, event_id, captured_at, frames]
+              properties:
+                gate_id:     { type: string, example: puerta-2 }
+                event_id:    { type: string, format: uuid }
+                captured_at: { type: string, format: date-time }
+                frames:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items: { type: string, format: binary }
+      responses:
+        "200":
+          description: Veredicto
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Verdict" }
+        "422":
+          description: Ninguna placa legible en la ráfaga
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    deviceAuth:
+      type: apiKey
+      in: header
+      name: X-Device-Key
+
+  responses:
+    Unauthorized:
+      description: Credenciales inválidas o sesión expirada
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No encontrado
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: Datos inválidos
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Role:
+      type: string
+      enum: [student, teacher, administrator]
+      description: Coincide con el ENUM de la columna `user.role`.
+
+    Plate:
+      type: string
+      pattern: '^[A-Z][A-Z0-9]{2}-[0-9]{3}$'
+      example: CUB-604
+      description: |
+        Formato canónico. La normalización (mayúsculas, sin espacios, reinsertar
+        el guion si el OCR lo omitió) ocurre en la API, no en el cliente.
+
+    Page:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: {} }
+        next_cursor:
+          type: [string, "null"]
+          description: Ausente o null cuando no hay más páginas.
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string }
+        code:   { type: string, example: PLATE_ALREADY_REGISTERED }
+
+    User:
+      type: object
+      required: [id, name, email, role, is_active]
+      properties:
+        id:         { type: integer }
+        name:       { type: string }
+        phone:      { type: [string, "null"] }
+        email:      { type: string, format: email }
+        role:       { $ref: "#/components/schemas/Role" }
+        is_active:  { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    UserWithCars:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            cars:
+              type: array
+              items: { $ref: "#/components/schemas/Car" }
+
+    UserCreate:
+      type: object
+      required: [name, email, role]
+      properties:
+        name:  { type: string, minLength: 1 }
+        phone: { type: string }
+        email: { type: string, format: email }
+        role:  { $ref: "#/components/schemas/Role" }
+        plates:
+          type: array
+          items: { $ref: "#/components/schemas/Plate" }
+
+    UserUpdate:
+      type: object
+      properties:
+        name:      { type: string }
+        phone:     { type: string }
+        email:     { type: string, format: email }
+        role:      { $ref: "#/components/schemas/Role" }
+        is_active: { type: boolean }
+
+    Car:
+      type: object
+      required: [id, plate, user_id]
+      properties:
+        id:      { type: integer }
+        plate:   { $ref: "#/components/schemas/Plate" }
+        user_id: { type: integer }
+
+    CarCreate:
+      type: object
+      required: [plate, user_id]
+      properties:
+        plate:   { $ref: "#/components/schemas/Plate" }
+        user_id: { type: integer }
+
+    Event:
+      type: object
+      required: [id, plate, detected_at, authorized]
+      properties:
+        id:          { type: integer }
+        plate:       { type: string }
+        detected_at:
+          type: string
+          format: date-time
+          description: |
+            **Siempre UTC.** El cliente convierte a `America/Lima` para mostrar.
+            Elimina el hack `- timedelta(hours=5)` del legacy.
+        authorized:  { type: boolean }
+        confidence:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+          description: Confianza de lectura. El legacy la descartaba y el frontend la forzaba a 0.
+        image_url:
+          type: [string, "null"]
+          format: uri
+          description: URL prefirmada de S3, de vida corta.
+        gate_opened:
+          type: [boolean, "null"]
+          description: Distingue "autorizado" de "el portón realmente abrió".
+        latency_ms:  { type: [integer, "null"] }
+        camera_id:   { type: [string, "null"] }
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
+          description: Null si la placa no está en la lista blanca.
+
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        token_type:   { type: string, enum: [bearer] }
+        expires_in:   { type: integer, example: 900 }
+        user:         { $ref: "#/components/schemas/User" }
+
+    Verdict:
+      type: object
+      required: [event_id, authorized, command]
+      properties:
+        event_id:   { type: string, format: uuid }
+        plate:      { type: [string, "null"] }
+        confidence: { type: [number, "null"] }
+        authorized: { type: boolean }
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/User"
+            - type: "null"
+        command:
+          type: object
+          required: [action, ttl_s]
+          properties:
+            action: { type: string, enum: [open, deny] }
+            ttl_s:
+              type: integer
+              example: 10
+              description: La Pi descarta el veredicto si llega después de este plazo.
+        latency_ms: { type: integer }
