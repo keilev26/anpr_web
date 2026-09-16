@@ -9,6 +9,10 @@ dependencies = []
 # Post-procesado y pruebas: ligero, no necesita el stack de visión.
 dev = ["pytest>=8.3", "ruff>=0.9"]
 
+# Preparar datasets (conversión COCO->YOLO, recortes de vista de puerta).
+# Pillow y no OpenCV: son unos MB frente a ~70, con el disco al 97%.
+data = ["pillow>=11.0"]
+
 # Solo para exportar el modelo y medir precisión. ~2-3 GB instalados.
 train = ["ultralytics>=8.3", "torch>=2.5", "onnx>=1.17", "onnxruntime>=1.20"]
 

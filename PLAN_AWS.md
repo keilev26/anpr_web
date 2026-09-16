@@ -83,7 +83,7 @@ El software solo puede *pedir* que el portón se mueva; el hardware debe poder *
 │ │ anpr-health       │   │ │   2. {plate, conf,        │ Lambda infer     │
 │ └───────────────────┼───┘ │      authorized}          │  YOLO11m ONNX    │
 │                     │     │◄──────────────────────────│  + PaddleOCR     │
-│         ┌───────────▼───┐ │                           │  (contenedor ARM)│
+│         ┌───────────▼───┐ │                           │ (contenedor x86) │
 │         │ 2 relés opto  │ │                           └───┬──────────┬───┘
 │         │ (FWD / REV)   │ │                               │          │
 │         └───────┬───────┘ │                          ┌────▼────┐  ┌──▼────┐
@@ -122,7 +122,7 @@ Supuestos declarados (corregir si no aplican):
 
 | Servicio | Configuración | USD/mes |
 |---|---|---|
-| Lambda inferencia | contenedor ARM 10 GB, 15k × 1.5s | 4.05 |
+| Lambda inferencia | contenedor x86_64 10 GB, 15k × 1.5s | 4.05 |
 | Lambda FastAPI (CRUD) | 512 MB, ~50k req | 0.30 |
 | API Gateway HTTP API | ~65k requests | 0.07 |
 | ECR | imagen ~3 GB | 0.30 |
@@ -146,13 +146,13 @@ Si prefieres un solo servidor con Docker Compose (MySQL + FastAPI + inferencia +
 
 | Servicio | Configuración | USD/mes |
 |---|---|---|
-| EC2 t4g.large (ARM) | 2 vCPU, 8 GB, 24/7 | 49.06 |
+| EC2 t3.large (x86) | 2 vCPU, 8 GB, 24/7 | 60.74 |
 | EBS gp3 | 30 GB | 2.40 |
 | IPv4 pública | $0.005/h | 3.65 |
 | S3 + Route 53 + CloudWatch | | 2.10 |
-| **Total** | | **≈ $57 / mes** |
+| **Total** | | **≈ $69 / mes** |
 
-Más caro y con más mantenimiento, pero latencia predecible sin cold starts y más fácil de depurar. Con un Compute Savings Plan de 1 año baja a ~$40.
+Más caro y con más mantenimiento, pero latencia predecible sin cold starts y más fácil de depurar. Con un Compute Savings Plan de 1 año baja a ~$50. (Instancia x86 y no Graviton/ARM: `paddlepaddle` no publica paquetes aarch64.)
 
 ### Sensibilidad al volumen
 
@@ -260,7 +260,7 @@ Estructura y mapa de endpoints ya definidos en `MEJORAS.md` secciones 2.1 y 2.2.
 - Exportar `best.pt` a ONNX; validar que el mAP no se degrada (`model.val()` antes y después, guardando la métrica como línea base — hoy no existe ninguna).
 - **Adelgazar PaddleOCR**: `ocr_config.yaml` trae activados `use_doc_preprocessor`, `use_doc_orientation_classify`, `use_doc_unwarping` y `use_textline_orientation` — cuatro modelos extra pensados para escanear documentos, inútiles sobre el recorte de una placa. Desactivarlos reduce la imagen y el tiempo de arranque de forma sustancial.
 - **Reemplazar las rutas Windows** de `ocr_config.yaml` (`C:\Users\Alexis\.paddlex\...`, cinco rutas) por descarga a una ruta relativa dentro del contenedor.
-- Contenedor Lambda ARM64 con ONNX Runtime + OCR; modelos horneados en la imagen, no descargados en runtime.
+- Contenedor Lambda **x86_64** con ONNX Runtime + PaddleOCR; modelos horneados en la imagen. (Se planeó ARM64, pero `paddlepaddle` no publica paquetes aarch64: verificado el 2026-09-16. Los $4.05 de la tabla de costos ya usaban la tarifa x86; con ARM habrían sido ~$3.25.)
 - API Gateway HTTP API con autorizador por mTLS o API key del dispositivo.
 - EventBridge cada 5 min para mantener tibia la Lambda.
 - Corregir dos bugs del pipeline actual al portarlo:

@@ -6,7 +6,7 @@ IaC (Terraform o CDK) para toda la nube. Región **us-east-1**.
 
 | Recurso | Uso |
 |---|---|
-| Lambda (contenedor ARM, 10 GB) | Inferencia — camino crítico |
+| Lambda (contenedor **x86_64**, 10 GB) | Inferencia — camino crítico. No ARM: `paddlepaddle` no publica paquetes aarch64 |
 | Lambda (512 MB) + Mangum | API FastAPI de F2 |
 | API Gateway HTTP API | Entrada, con mTLS o API key de dispositivo |
 | RDS MySQL `db.t4g.micro` | Base de datos |

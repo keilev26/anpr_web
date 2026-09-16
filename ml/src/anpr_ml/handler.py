@@ -11,7 +11,8 @@ necesite credenciales de base de datos.
 Contrato:
     entrada  {"frames": ["<jpeg en base64>", ...]}
     salida   {"plate": "CUB-604"|null, "confidence": 0.93, "ocr_confidence": 0.88,
-              "corrections": [...], "plate_px_width": 142, "frames_processed": 2,
+              "corrections": [...], "votes": {"CUB-604": 2}, "reason": null,
+              "plate_px_width": 142, "frames_processed": 2,
               "failed_readings": [...], "elapsed_ms": 380}
 """
 
@@ -43,9 +44,11 @@ def _build_pipeline() -> PlatePipeline:
 
     return PlatePipeline(
         detector=OnnxDetector(os.environ["MODEL_PATH"]),
-        ocr=PaddleOcr(os.environ.get("OCR_CONFIG", "ocr_config.yaml")),
+        ocr=PaddleOcr(os.environ.get("OCR_MODELS_DIR")),
         cropper=OnnxCropper(),
         min_box_confidence=float(os.environ.get("CONF_THRESHOLD", "0.30")),
+        # Fotogramas que deben leer la misma placa. Ver PlatePipeline.
+        min_agreement=int(os.environ.get("MIN_AGREEMENT", "2")),
     )
 
 
@@ -97,26 +100,34 @@ def lambda_handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]
         log.warning(
             "Placa de solo %spx de ancho (mínimo utilizable %s): el cuello de "
             "botella es la cámara, no el modelo.",
-            result.plate_px_width, MIN_USABLE_PLATE_PX,
+            result.plate_px_width,
+            MIN_USABLE_PLATE_PX,
         )
 
     if not result.ok:
         log.info(
-            "Sin placa legible. frames=%s cajas=%s descartadas=%s",
-            result.frames_processed, result.boxes_found, result.failed_readings,
+            "Sin placa aceptada (%s). frames=%s cajas=%s votos=%s descartadas=%s",
+            result.reason,
+            result.frames_processed,
+            result.boxes_found,
+            result.failed_readings,
         )
 
     return {
         "statusCode": 200,
-        "body": json.dumps({
-            "plate": result.plate,
-            "confidence": result.confidence,
-            "ocr_confidence": result.ocr_confidence,
-            "corrections": result.corrections,
-            "plate_px_width": result.plate_px_width,
-            "frames_processed": result.frames_processed,
-            "boxes_found": result.boxes_found,
-            "failed_readings": result.failed_readings,
-            "elapsed_ms": result.elapsed_ms,
-        }),
+        "body": json.dumps(
+            {
+                "plate": result.plate,
+                "confidence": result.confidence,
+                "ocr_confidence": result.ocr_confidence,
+                "corrections": result.corrections,
+                "votes": result.votes,
+                "reason": result.reason,
+                "plate_px_width": result.plate_px_width,
+                "frames_processed": result.frames_processed,
+                "boxes_found": result.boxes_found,
+                "failed_readings": result.failed_readings,
+                "elapsed_ms": result.elapsed_ms,
+            }
+        ),
     }

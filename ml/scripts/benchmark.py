@@ -31,7 +31,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Mide la precisión del pipeline")
     ap.add_argument("--images", required=True, type=Path)
     ap.add_argument("--model", default="best.onnx", type=Path)
-    ap.add_argument("--ocr-config", default="ocr_config.yaml")
+    ap.add_argument(
+        "--ocr-models-dir", default=None, help="Modelos de PaddleOCR locales (opcional)"
+    )
     ap.add_argument("--conf", type=float, default=0.30)
     ap.add_argument("--out", type=Path, default=Path("benchmark.json"))
     args = ap.parse_args()
@@ -42,13 +44,13 @@ def main() -> int:
         from anpr_ml.onnx_engine import OnnxCropper, OnnxDetector, PaddleOcr
         from anpr_ml.pipeline import PlatePipeline
     except ImportError as exc:
-        print(f'Falta el runtime de visión ({exc}):  uv pip install -e ".[runtime]"',
-              file=sys.stderr)
+        print(
+            f'Falta el runtime de visión ({exc}):  uv pip install -e ".[runtime]"', file=sys.stderr
+        )
         return 1
 
     fotos = sorted(
-        p for p in args.images.rglob("*")
-        if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
+        p for p in args.images.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png"}
     )
     if not fotos:
         print(f"No hay imágenes en {args.images}", file=sys.stderr)
@@ -56,9 +58,13 @@ def main() -> int:
 
     pipeline = PlatePipeline(
         OnnxDetector(str(args.model)),
-        PaddleOcr(args.ocr_config),
+        PaddleOcr(args.ocr_models_dir),
         OnnxCropper(),
         min_box_confidence=args.conf,
+        # Cada imagen del benchmark es un solo fotograma: con el consenso de 2 de
+        # producción nunca se aceptaría nada. Esto mide la LECTURA por fotograma;
+        # el consenso se evalúa aparte, sobre ráfagas reales.
+        min_agreement=1,
     )
 
     stats = Counter()
@@ -83,10 +89,15 @@ def main() -> int:
             fallos.append({"archivo": foto.name, "esperada": esperada, "leida": r.plate})
         else:
             stats["no_leidas"] += 1
-            fallos.append({
-                "archivo": foto.name, "esperada": esperada, "leida": None,
-                "descartadas": r.failed_readings, "ancho_px": r.plate_px_width,
-            })
+            fallos.append(
+                {
+                    "archivo": foto.name,
+                    "esperada": esperada,
+                    "leida": None,
+                    "descartadas": r.failed_readings,
+                    "ancho_px": r.plate_px_width,
+                }
+            )
 
     n = len(fotos)
     print(f"\nImágenes            : {n}")
@@ -97,15 +108,15 @@ def main() -> int:
     print(f"No leída            : {stats['no_leidas'] / n:.1%}")
     if anchos:
         anchos.sort()
-        print(f"\nAncho de placa      : mediana {anchos[len(anchos) // 2]}px, "
-              f"mínimo {anchos[0]}px")
+        print(f"\nAncho de placa      : mediana {anchos[len(anchos) // 2]}px, mínimo {anchos[0]}px")
 
     print("\nUna placa MAL leída es peor que una no leída: la no leída deja la")
     print("puerta cerrada, la mal leída puede abrirla al vehículo equivocado.")
 
     args.out.write_text(
-        json.dumps({"total": n, "stats": dict(stats), "fallos": fallos}, indent=2,
-                   ensure_ascii=False),
+        json.dumps(
+            {"total": n, "stats": dict(stats), "fallos": fallos}, indent=2, ensure_ascii=False
+        ),
         encoding="utf-8",
     )
     print(f"\nDetalle en {args.out}")

@@ -5,7 +5,7 @@ POST /v1/detections          Content-Type: multipart/form-data
   gate_id      string        "puerta-2"
   event_id     uuid          idempotencia: reenviar no abre dos veces
   captured_at  ISO8601 UTC
-  frames[]     1..10 JPEG
+  frames[]     1..10 JPEG     enviar al menos 3: ver "Consenso" abajo
 
 200 OK
 {
@@ -30,13 +30,20 @@ Sin esto, un veredicto retrasado puede abrir el portón cuando el vehículo ya s
 
 **`event_id` como idempotencia.** Un reenvío por timeout no debe abrir dos veces.
 
+**Consenso entre fotogramas.** La inferencia solo acepta una placa si la leen
+al menos `MIN_AGREEMENT` fotogramas distintos (por defecto 2). En la prueba
+visual del 2026-09-16 hubo lecturas erróneas con aspecto válido y confianza alta
+(`T5Q-640` → `T50-640`, 0,91); el mismo error rara vez se repite en dos fotos.
+Con menos fotogramas que `MIN_AGREEMENT` la placa **se rechaza**, no se relaja
+el requisito. **La Pi debe enviar al menos 3** para tener margen si uno sale borroso.
+
 ## Errores
 
 | Código | Significado | Qué hace la Pi |
 |---|---|---|
 | 400 | Ráfaga inválida | Descarta, registra fallo |
 | 401 | Credencial de dispositivo inválida | Alerta, no reintenta |
-| 422 | Ninguna placa legible en la ráfaga | Registra, no abre |
+| 422 | Ninguna placa aceptada: nada legible, sin consenso o fotogramas insuficientes | Registra, no abre |
 | 5xx / timeout | Falla de nube | Encola y reintenta; **no abre** |
 
 ## Presupuesto de latencia

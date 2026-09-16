@@ -26,8 +26,12 @@ COMODO = 100
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Mide el ancho de placa en píxeles")
-    ap.add_argument("--images", required=True, type=Path,
-                    help="Carpeta con fotos tomadas DESDE LA POSICIÓN REAL de la cámara")
+    ap.add_argument(
+        "--images",
+        required=True,
+        type=Path,
+        help="Carpeta con fotos tomadas DESDE LA POSICIÓN REAL de la cámara",
+    )
     ap.add_argument("--model", default="best.pt", type=Path)
     ap.add_argument("--conf", type=float, default=0.30)
     ap.add_argument("--imgsz", type=int, default=640)
@@ -40,8 +44,7 @@ def main() -> int:
         return 1
 
     fotos = sorted(
-        p for p in args.images.rglob("*")
-        if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}
+        p for p in args.images.rglob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}
     )
     if not fotos:
         print(f"No hay imágenes en {args.images}", file=sys.stderr)

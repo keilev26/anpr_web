@@ -4,5 +4,11 @@ __pycache__/
 .ruff_cache/
 *.onnx
 *.pt
-models/
-datasets/
+models
+datasets
+
+# Dataset de Roboflow descargado a mano (2 GB) y artefactos de entrenamiento.
+# Viven en /data/anpr/ml (partición de datos) y aquí son enlaces simbólicos:
+# sin barra final, porque para git un enlace no es una carpeta.
+roboflow_images
+runs

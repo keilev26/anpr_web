@@ -21,8 +21,12 @@ from pathlib import Path
 def main() -> int:
     ap = argparse.ArgumentParser(description="Exporta el modelo a ONNX")
     ap.add_argument("--model", default="best.pt", type=Path)
-    ap.add_argument("--data", type=Path, default=None,
-                    help="data.yaml del dataset, para medir mAP. Sin él solo exporta.")
+    ap.add_argument(
+        "--data",
+        type=Path,
+        default=None,
+        help="data.yaml del dataset, para medir mAP. Sin él solo exporta.",
+    )
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--opset", type=int, default=17)
     ap.add_argument("--out", type=Path, default=Path("metrics.json"))

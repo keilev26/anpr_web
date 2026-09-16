@@ -20,16 +20,24 @@ PLATE_RE = re.compile(r"^[A-Z][A-Z0-9]{2}-\d{3}$")
 _NON_ALNUM = re.compile(r"[^A-Za-z0-9]")
 
 # Confusiones típicas de OCR en caracteres de placa.
-# Se aplican SEGÚN LA POSICIÓN: una placa peruana es LLL-DDD (con el 2.º y 3.º
-# admitiendo dígito), así que en las tres últimas posiciones una "O" solo puede
-# ser un "0", y en la primera un "0" solo puede ser una "O".
-_TO_DIGIT = str.maketrans({"O": "0", "Q": "0", "D": "0",
-                           "I": "1", "L": "1", "T": "1",
-                           "Z": "2", "E": "3", "A": "4",
-                           "S": "5", "G": "6", "B": "8"})
-
-_TO_LETTER = str.maketrans({"0": "O", "1": "I", "2": "Z",
-                            "5": "S", "6": "G", "8": "B"})
+# Se aplican SEGÚN LA POSICIÓN y SOLO en la zona de dígitos: una placa peruana es
+# LLD-DDD, así que en las tres últimas posiciones una "O" solo puede ser un "0".
+_TO_DIGIT = str.maketrans(
+    {
+        "O": "0",
+        "Q": "0",
+        "D": "0",
+        "I": "1",
+        "L": "1",
+        "T": "1",
+        "Z": "2",
+        "E": "3",
+        "A": "4",
+        "S": "5",
+        "G": "6",
+        "B": "8",
+    }
+)
 
 MAX_CORRECTIONS = 2
 """
@@ -69,18 +77,20 @@ def _fix_by_position(core: str) -> tuple[str, list[str]]:
     """
     Corrige usando la estructura conocida LLD-DDD.
 
-    Posición 0      -> debe ser letra
+    Posición 0      -> debe ser letra, pero NO se corrige (ver abajo)
     Posiciones 1-2  -> letra o dígito (se dejan como están)
-    Posiciones 3-5  -> deben ser dígitos
+    Posiciones 3-5  -> deben ser dígitos: aquí sí se corrige
+
+    La primera posición se corregía convirtiendo dígitos en letras (1->I, 0->O...).
+    Se quitó tras la prueba visual del 2026-09-16 (`ml/runs/ocr_visual`): sus 4
+    aplicaciones reales fueron TODAS erróneas. El OCR leía "1" en placas que
+    empiezan por "T" con la barra superior tapada por el marco, y la corrección
+    fabricaba placas inexistentes (I2E-274 en vez de T2E-274). Una placa inventada
+    con aspecto válido es peor que "no legible". Si en el futuro se quiere probar
+    1->T, hay que medirlo con un benchmark etiquetado, no con intuición.
     """
     chars = list(core)
     fixes: list[str] = []
-
-    if chars[0].isdigit():
-        nuevo = chars[0].translate(_TO_LETTER)
-        if nuevo != chars[0]:
-            fixes.append(f"pos1: {chars[0]}->{nuevo}")
-            chars[0] = nuevo
 
     for i in (3, 4, 5):
         if chars[i].isalpha():

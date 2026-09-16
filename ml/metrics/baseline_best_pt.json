@@ -1,0 +1,74 @@
+{
+  "modelo": "/home/calebcamargo/proyects/sistema/proyecto_vargas/anpr_web/legacy/mqtt-camara-main/best.pt",
+  "clases_modelo": {
+    "0": "0",
+    "1": "2"
+  },
+  "clase_placa": 0,
+  "detecciones_otras_clases_en_muestra": {
+    "2": 38
+  },
+  "device": "0",
+  "criterio": {
+    "min_map50": 0.9,
+    "max_caida_vista_puerta": 0.05
+  },
+  "resultados": {
+    "valtest_640": {
+      "imgsz": 640,
+      "nota": "principal",
+      "map50": 0.5554,
+      "map50_95": 0.1922,
+      "precision": 0.7561,
+      "recall": 0.5426
+    },
+    "valtest_1280": {
+      "imgsz": 1280,
+      "nota": "cuánto se pierde por placas diminutas a 640",
+      "map50": 0.8439,
+      "map50_95": 0.3809,
+      "precision": 0.8829,
+      "recall": 0.8
+    },
+    "test_640": {
+      "imgsz": 640,
+      "nota": "solo 32 imágenes: poco fiable",
+      "map50": 0.4982,
+      "map50_95": 0.1865,
+      "precision": 0.7625,
+      "recall": 0.4762
+    },
+    "foto_placa_640": {
+      "imgsz": 640,
+      "nota": "familia Foto-Placa",
+      "map50": 0.5079,
+      "map50_95": 0.1744,
+      "precision": 0.7396,
+      "recall": 0.5
+    },
+    "fecha_640": {
+      "imgsz": 640,
+      "nota": "familia por fecha (tarde/noche)",
+      "map50": 0.7636,
+      "map50_95": 0.2759,
+      "precision": 0.8211,
+      "recall": 0.6953
+    },
+    "gate_view_640": {
+      "imgsz": 640,
+      "nota": "recortes de vista de puerta",
+      "map50": 0.9536,
+      "map50_95": 0.5403,
+      "precision": 0.9721,
+      "recall": 0.9196
+    }
+  },
+  "reentrenar": true,
+  "motivos": [
+    "mAP@50 0.5554 < 0.9 en valid+test a 640"
+  ],
+  "advertencias": [
+    "Hay placas visibles sin etiquetar en el dataset: detectarlas cuenta como falso positivo, así que la precisión está algo subestimada.",
+    "test_640 tiene 32 imágenes: usar valtest_640 como referencia."
+  ]
+}

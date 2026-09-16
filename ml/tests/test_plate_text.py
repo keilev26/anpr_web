@@ -8,12 +8,12 @@ class TestLecturasLimpias:
         ("lectura", "esperada"),
         [
             ("CUB-604", "CUB-604"),
-            ("CUB604", "CUB-604"),     # el bug del legacy: 6 chars se descartaban
+            ("CUB604", "CUB-604"),  # el bug del legacy: 6 chars se descartaban
             ("cub-604", "CUB-604"),
             ("CUB 604", "CUB-604"),
             (" CUB-604 ", "CUB-604"),
             ("C U B 6 0 4", "CUB-604"),
-            ("V1A-882", "V1A-882"),    # 2.º carácter numérico, válido en Perú
+            ("V1A-882", "V1A-882"),  # 2.º carácter numérico, válido en Perú
         ],
     )
     def test_interpreta(self, lectura, esperada):
@@ -29,11 +29,10 @@ class TestCorreccionPosicional:
     @pytest.mark.parametrize(
         ("lectura", "esperada", "n_fixes"),
         [
-            ("CUB-6O4", "CUB-604", 1),    # O en zona de dígitos
-            ("CUB-6S4", "CUB-654", 1),    # S -> 5
-            ("CUB-GO4", "CUB-604", 2),    # G -> 6 y O -> 0
-            ("0UB-604", "OUB-604", 1),    # 0 en la primera posición -> O
-            ("CUB-8O4", "CUB-804", 1),    # B -> 8 solo en zona de dígitos
+            ("CUB-6O4", "CUB-604", 1),  # O en zona de dígitos
+            ("CUB-6S4", "CUB-654", 1),  # S -> 5
+            ("CUB-GO4", "CUB-604", 2),  # G -> 6 y O -> 0
+            ("CUB-8O4", "CUB-804", 1),  # B -> 8 solo en zona de dígitos
         ],
     )
     def test_corrige_por_posicion(self, lectura, esperada, n_fixes):
@@ -106,7 +105,7 @@ class TestSeguridad:
 
     def test_rechaza_demasiadas_correcciones(self):
         """Con más de 2 conjeturas, la placa es más invención que lectura."""
-        # 0->O, G->6, O->0, S->5  =  4 conjeturas
+        # G->6, O->0, S->5  =  3 conjeturas
         c = parse_plate("0UB-GOS")
         assert not c.valid
         assert len(c.corrections) > 2
@@ -115,6 +114,18 @@ class TestSeguridad:
         c = parse_plate("CUB-GO4")
         assert c.valid and len(c.corrections) == 2
 
-    def test_prefijo_con_una_letra_basta(self):
-        """'0UB' tiene U y B: sí es un prefijo de placa con un 0 mal leído."""
-        assert parse_plate("0UB-604").plate == "OUB-604"
+    def test_primera_posicion_no_se_corrige(self):
+        """Un dígito inicial ya no se convierte en letra: queda como no legible."""
+        c = parse_plate("0UB-604")
+        assert not c.valid and not c.was_corrected
+
+    @pytest.mark.parametrize("lectura", ["12E274", "17P-632", "1SY-654", "13F-189"])
+    def test_casos_reales_que_la_correccion_inventaba(self, lectura):
+        """
+        Lecturas reales de la prueba visual. Las placas eran T2E-274, T7P-632,
+        TSY-654 y T3F-189: la "T" con la barra tapada se leía "1", y la antigua
+        corrección 1->I fabricaba placas inexistentes marcadas como válidas.
+        """
+        c = parse_plate(lectura)
+        assert not c.valid
+        assert c.raw == lectura

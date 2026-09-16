@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from anpr_ml.pipeline import Box
+from anpr_ml.pipeline import Box, crop_window
 
 # El modelo se entrenó a 640 (ver metadatos de best.pt: imgsz=640).
 INPUT_SIZE = 640
@@ -51,13 +51,13 @@ class OnnxDetector:
 
         canvas = np.full((INPUT_SIZE, INPUT_SIZE, 3), 114, dtype=np.uint8)
         top, left = (INPUT_SIZE - nh) // 2, (INPUT_SIZE - nw) // 2
-        canvas[top:top + nh, left:left + nw] = resized
+        canvas[top : top + nh, left : left + nw] = resized
         return canvas, scale, left, top
 
     def detect(self, image: np.ndarray) -> list[Box]:
         canvas, scale, pad_x, pad_y = self._letterbox(image)
 
-        blob = canvas[:, :, ::-1].transpose(2, 0, 1)          # BGR->RGB, HWC->CHW
+        blob = canvas[:, :, ::-1].transpose(2, 0, 1)  # BGR->RGB, HWC->CHW
         blob = np.ascontiguousarray(blob, dtype=np.float32) / 255.0
         blob = blob[None]
 
@@ -97,20 +97,18 @@ class OnnxDetector:
 
 class OnnxCropper:
     def crop(self, image: np.ndarray, box: Box) -> np.ndarray:
-        # Un poco de margen: los bordes de la placa ayudan al OCR a segmentar.
-        m = max(2, box.height // 10)
         h, w = image.shape[:2]
-        return image[
-            max(0, box.y1 - m):min(h, box.y2 + m),
-            max(0, box.x1 - m):min(w, box.x2 + m),
-        ]
+        x1, y1, x2, y2 = crop_window(box, w, h)
+        return image[y1:y2, x1:x2]
 
 
 class PaddleOcr:
-    def __init__(self, config_path: str) -> None:
+    def __init__(self, models_dir: str | None = None) -> None:
         from paddleocr import PaddleOCR
 
-        self._ocr = PaddleOCR(paddlex_config=config_path)
+        from anpr_ml.ocr_settings import paddleocr_kwargs
+
+        self._ocr = PaddleOCR(**paddleocr_kwargs(models_dir))
 
     def read(self, crop: np.ndarray) -> list[tuple[str, float]]:
         if crop.size == 0:
@@ -127,6 +125,5 @@ class PaddleOcr:
         # Emparejar texto con su score; si faltan scores, asumir 0.0 en vez de
         # inventar confianza: el post-procesado usa ese número para elegir.
         return [
-            (str(t), float(scores[i]) if i < len(scores) else 0.0)
-            for i, t in enumerate(textos)
+            (str(t), float(scores[i]) if i < len(scores) else 0.0) for i, t in enumerate(textos)
         ]

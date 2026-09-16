@@ -31,6 +31,18 @@ El síntoma en producción no es un error visible: la detección se registra com
 *no legible* y la puerta simplemente no abre. Si alguien reporta "mi placa nunca
 funciona", esto es lo primero que hay que descartar.
 
+## Evidencia encontrada (2026-09-16)
+
+El dataset de Roboflow *Peru Plate Numbers* (usado en F4) **incluye placas de
+moto**, con una disposición distinta del tipo `NNNN-NL`, visibles en los
+recortes de `ml/datasets/peru-gate-view/preview/`. Consecuencias hoy:
+
+- El **detector** las aprende y las encuentra: la detección no depende del formato.
+- El **post-procesado** (`ml/src/anpr_ml/plate_text.py`) las rechaza como no legibles.
+
+Es decir, si entran motos por la Puerta 2, el sistema las verá y aun así no abrirá.
+Esto no cambia la decisión, pero ya no es una hipótesis.
+
 ## Cómo verificar si hace falta ampliar
 
 No es una pregunta que se responda desde el código ni con imágenes de internet:
@@ -59,7 +71,8 @@ sea uno solo:
 **La corrección posicional de F4.** `_fix_by_position()` asume la estructura
 `LLD-DDD`: sabe que las tres últimas posiciones son dígitos y por eso puede
 convertir `O`→`0` con seguridad. Con varios formatos hay que decidir el formato
-*antes* de corregir, o desactivar la corrección para los ambiguos.
+*antes* de corregir, o desactivar la corrección para los ambiguos. (La corrección
+de la primera posición ya se quitó el 2026-09-16: fabricaba placas; ver `ml/README.md`.)
 
 **La regla del prefijo con letra.** `parse_plate()` rechaza lecturas cuyo
 prefijo no tenga ninguna letra, para no inventar placas a partir de seis
