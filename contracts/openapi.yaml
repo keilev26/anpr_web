@@ -386,6 +386,10 @@ components:
         Formato canónico. La normalización (mayúsculas, sin espacios, reinsertar
         el guion si el OCR lo omitió) ocurre en la API, no en el cliente.
 
+        ALCANCE: solo vehículo particular. Las placas con otra disposición
+        (motos, oficiales) se rechazan aunque el OCR las lea bien. Ampliarlo
+        es una tarea pendiente documentada en contracts/plate-format.md.
+
     Page:
       type: object
       required: [items]

@@ -5,6 +5,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, Field, PlainSerializer
 
+# Solo vehículo particular. La ampliación a otros formatos peruanos (motos,
+# oficiales) está documentada en contracts/plate-format.md y debe cambiar el
+# contrato, esta API, ml/plate_text.py y web/lib/format.ts a la vez.
 PLATE_RE = re.compile(r"^[A-Z][A-Z0-9]{2}-\d{3}$")
 _NON_ALNUM = re.compile(r"[^A-Za-z0-9]")
 

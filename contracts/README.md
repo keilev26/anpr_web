@@ -12,6 +12,7 @@ seis no pueden avanzar sin riesgo de chocar al integrar.
 | `gpio-map.md` | Pi → Electrónica | F5 ↔ F6 |
 | `openapi.yaml` | API → Frontend | F2 ↔ F1 |
 | `db-schema.md` | Modelo de datos | F2 ↔ F4 |
+| `plate-format.md` | Alcance del formato de placa | F1 ↔ F2 ↔ F4 |
 
 ## Regla
 
