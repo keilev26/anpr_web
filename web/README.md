@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# F1 — Web (React SPA)
 
-## Getting Started
+Dashboard de operación: registros ANPR, gestión de usuarios y placas, login.
 
-First, run the development server:
+## Alcance
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- React SPA (Vite), desplegada en S3 + CloudFront
+- TanStack Query para datos del servidor
+- Guardia de rutas real contra la API de F2
+- Vista de evento con foto desde S3 (URL prefirmada) y confianza de lectura
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## No incluye
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- La API (F2) ni su despliegue (F3)
+- Nada del dispositivo de campo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Cómo trabajar aislado
 
-## Learn More
+Mock de la API con **MSW** o `json-server`, alimentado por `contracts/openapi.yaml`.
+El cliente TypeScript se **genera** desde ese archivo: no se escriben tipos a mano
+en dos lados.
 
-To learn more about Next.js, take a look at the following resources:
+## Terminado cuando
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Todas las vistas funcionan contra mocks, con login y guardia de rutas real.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Punto de partida
 
-## Deploy on Vercel
+`legacy/web/` tiene el Next.js actual con shadcn/ui. Los componentes de
+`src/components/ui/` se reutilizan casi tal cual. **No** se migran las ~1.100 líneas
+de páginas huérfanas (`dashboard/{statistics,database,users,settings,stream}`),
+que están comentadas en el sidebar y llenas de datos mock.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ver `MEJORAS.md` §4 para la lista de problemas del frontend actual.

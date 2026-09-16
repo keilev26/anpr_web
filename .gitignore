@@ -205,3 +205,16 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# --- Reestructuración por frentes ---
+# Virtualenvs (el venv/ del proyecto viejo estaba versionado: 2643 archivos)
+venv/
+.venv/
+
+# Pesos de modelos: usar Git LFS o S3, nunca el repo (best.pt son 40 MB)
+*.pt
+*.onnx
+*.hef
+
+# Artefactos locales de la Pi
+/edge/spool/
