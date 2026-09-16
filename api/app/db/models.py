@@ -97,3 +97,23 @@ class EventDetection(Base):
     user: Mapped[User | None] = relationship(lazy="selectin")
 
     __table_args__ = (Index("ix_event_plate_detected", "plate", "detected_at"),)
+
+
+class LoginAttempt(Base):
+    """
+    Intentos fallidos de login por correo, para frenar la fuerza bruta.
+
+    En la base de datos y no en memoria: en Lambda cada contenedor tiene su propia
+    memoria, y un contador local se reiniciaría o se repartiría entre contenedores.
+    La clave es el correo tal como llega, exista o no: bloquear solo correos
+    registrados permitiría enumerarlos.
+    """
+
+    __tablename__ = "login_attempt"
+
+    email: Mapped[str] = mapped_column(String(255), primary_key=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

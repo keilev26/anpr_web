@@ -77,3 +77,57 @@ async def test_cookie_de_refresh_tiene_path_raiz(client):
     r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
     cookie = r.headers["set-cookie"]
     assert "Path=/;" in cookie or cookie.rstrip().endswith("Path=/"), cookie
+
+
+# ---------- bloqueo por fuerza bruta ----------
+
+
+async def _fallar(client, email, veces):
+    for _ in range(veces):
+        r = await client.post("/auth/login", json={"email": email, "password": "mala-clave"})
+    return r
+
+
+async def test_bloquea_tras_cinco_fallos_incluso_con_la_clave_correcta(client):
+    r = await _fallar(client, "admin@uni.pe", 5)
+    assert r.status_code == 401
+    r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
+    assert r.status_code == 429
+    assert int(r.headers["retry-after"]) > 0
+
+
+async def test_correo_inexistente_se_bloquea_igual(client):
+    """Si solo se bloquearan correos registrados, el 429 los delataría."""
+    await _fallar(client, "nadie@uni.pe", 5)
+    r = await client.post("/auth/login", json={"email": "nadie@uni.pe", "password": "x"})
+    assert r.status_code == 429
+
+
+async def test_login_correcto_reinicia_el_contador(client):
+    await _fallar(client, "admin@uni.pe", 4)
+    ok = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
+    assert ok.status_code == 200
+    r = await _fallar(client, "admin@uni.pe", 4)
+    assert r.status_code == 401
+
+
+async def test_el_bloqueo_vence(client, session_factory):
+    from datetime import timedelta
+
+    from app.db.models import LoginAttempt, utcnow
+
+    await _fallar(client, "admin@uni.pe", 5)
+    async with session_factory() as s:
+        attempt = await s.get(LoginAttempt, "admin@uni.pe")
+        attempt.locked_until = utcnow() - timedelta(seconds=1)
+        await s.commit()
+    r = await client.post("/auth/login", json={"email": "admin@uni.pe", "password": TEST_PASSWORD})
+    assert r.status_code == 200
+
+
+async def test_bloqueo_de_un_correo_no_afecta_a_otro(client):
+    await _fallar(client, "admin@uni.pe", 5)
+    r = await client.post(
+        "/auth/login", json={"email": "docente@uni.pe", "password": TEST_PASSWORD}
+    )
+    assert r.status_code == 200

@@ -65,6 +65,17 @@ paths:
               schema: { $ref: "#/components/schemas/LoginResponse" }
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          description: |
+            Correo bloqueado temporalmente tras 5 intentos fallidos seguidos (15 min).
+            Se aplica exista o no el correo, y rechaza incluso la contraseña correcta.
+          headers:
+            Retry-After:
+              schema: { type: integer }
+              description: Segundos hasta que vence el bloqueo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /auth/refresh:
     post:

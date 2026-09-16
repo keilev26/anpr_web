@@ -75,6 +75,11 @@ data "aws_cloudfront_cache_policy" "optimized" {
 
 # Reenvía cookies, query y cabeceras del cliente, pero NO el Host: la Function URL
 # rechaza peticiones con un Host distinto del suyo.
+# HSTS, X-Frame-Options SAMEORIGIN (clickjacking), nosniff y Referrer-Policy. Gratis.
+data "aws_cloudfront_response_headers_policy" "security" {
+  name = "Managed-SecurityHeadersPolicy"
+}
+
 data "aws_cloudfront_origin_request_policy" "all_except_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }
@@ -88,7 +93,8 @@ resource "aws_cloudfront_distribution" "main" {
   comment             = "${local.name}: SPA + API bajo el mismo dominio"
   default_root_object = "index.html"
   # Solo Norteamérica y Europa: la más barata. Desde Perú funciona igual, con algo más de latencia.
-  price_class = "PriceClass_100"
+  price_class     = "PriceClass_100"
+  is_ipv6_enabled = true
 
   origin {
     origin_id                = "web"
@@ -114,12 +120,13 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "web"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
-    compress               = true
+    target_origin_id           = "web"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
+    compress                   = true
 
     function_association {
       event_type   = "viewer-request"
@@ -130,14 +137,15 @@ resource "aws_cloudfront_distribution" "main" {
   # Mismo dominio que el SPA: la cookie de sesión HttpOnly viaja sin problemas de
   # SameSite (el fallo que apareció en el hito I1).
   ordered_cache_behavior {
-    path_pattern             = "/api/*"
-    target_origin_id         = "api"
-    viewer_protocol_policy   = "https-only"
-    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods           = ["GET", "HEAD"]
-    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
-    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_except_host.id
-    compress                 = true
+    path_pattern               = "/api/*"
+    target_origin_id           = "api"
+    viewer_protocol_policy     = "https-only"
+    allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods             = ["GET", "HEAD"]
+    cache_policy_id            = data.aws_cloudfront_cache_policy.disabled.id
+    origin_request_policy_id   = data.aws_cloudfront_origin_request_policy.all_except_host.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
+    compress                   = true
   }
 
   restrictions {

@@ -17,10 +17,8 @@ resource "aws_lambda_function" "api" {
     variables = merge(
       {
         SSM_PREFIX = local.ssm_prefix
-        DEV_MODE   = "false" # cookie de refresh con Secure
-        # Sin pool: conexiones de una invocación anterior quedan ligadas a otro
-        # bucle de eventos y SQLAlchemy async falla.
-        DB_NULLPOOL = "true"
+        # Cookie de refresh con Secure y sin /docs ni /openapi.json públicos.
+        DEV_MODE = "false"
       },
       local.infer_enabled ? { INFER_FUNCTION_NAME = aws_lambda_function.infer[0].function_name } : {}
     )

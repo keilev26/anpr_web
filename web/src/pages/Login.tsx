@@ -30,7 +30,9 @@ export default function LoginPage() {
       setError(
         err instanceof HttpError && err.status === 401
           ? "Correo o contraseña incorrectos."
-          : "No se pudo conectar con el servidor.",
+          : err instanceof HttpError && err.status === 429
+            ? "Demasiados intentos fallidos. Espera unos minutos e inténtalo de nuevo."
+            : "No se pudo conectar con el servidor.",
       )
     } finally {
       setIsLoading(false)

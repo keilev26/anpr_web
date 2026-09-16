@@ -76,16 +76,16 @@ def test_tls_con_ca_propia_para_aiven():
     assert ctx.check_hostname is True  # verifica también el nombre del host
 
 
-def test_nullpool_para_lambda():
-    from sqlalchemy.pool import NullPool
+def test_pool_pequeno_para_mysql():
+    opts = engine_options(Settings(database_url="mysql+aiomysql://u:p@h/db"))
+    assert opts["pool_size"] == 1
+    assert opts["pool_pre_ping"] is True
+    assert opts["pool_recycle"] == 300
 
-    opts = engine_options(Settings(db_nullpool=True))
-    assert opts["poolclass"] is NullPool
 
-
-def test_local_sin_tls_ni_nullpool():
-    opts = engine_options(Settings())
-    assert "connect_args" not in opts and "poolclass" not in opts
+def test_sqlite_local_sin_tls_ni_parametros_de_pool():
+    opts = engine_options(Settings(database_url="sqlite+aiosqlite:///./anpr.db", db_ssl_ca=""))
+    assert "connect_args" not in opts and "pool_size" not in opts
 
 
 # ---------- candado de origen ----------
@@ -245,3 +245,21 @@ def test_handler_ruta_inexistente_devuelve_404_json_no_el_spa():
 
     r = handler(_function_url_event("GET", "/api/no-existe"), _Ctx())
     assert r["statusCode"] == 404
+
+
+def test_documentacion_oculta_en_produccion():
+    import importlib
+
+    import app.main as main_module
+
+    try:
+        get_settings.cache_clear()
+        import os
+
+        os.environ["DEV_MODE"] = "false"
+        prod = importlib.reload(main_module).app
+        assert prod.docs_url is None and prod.redoc_url is None and prod.openapi_url is None
+    finally:
+        os.environ["DEV_MODE"] = "true"
+        get_settings.cache_clear()
+        importlib.reload(main_module)

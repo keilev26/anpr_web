@@ -24,10 +24,21 @@ class Settings(BaseSettings):
     db_ssl_ca: str = ""
     """Certificado PEM de la CA de la base de datos. Aiven exige TLS con su propia CA."""
 
-    db_nullpool: bool = False
-    """Sin pool de conexiones. En Lambda, un pool reutilizaría conexiones creadas en
-    el bucle de eventos de una invocación anterior, y SQLAlchemy async falla con
-    'attached to a different loop'. Cuesta un handshake TLS por petición."""
+    db_pool_size: int = 1
+    """Conexiones que el pool mantiene abiertas (solo MySQL). En Lambda cada contenedor
+    atiende una petición a la vez y Mangum reutiliza el mismo bucle de eventos entre
+    invocaciones, así que una conexión basta y ahorra ~0,65 s de handshake TLS."""
+
+    db_pool_recycle: int = 300
+    """Segundos antes de reabrir una conexión. Por debajo de los cortes por inactividad
+    de Aiven; pool_pre_ping cubre además los cortes imprevistos."""
+
+    login_max_failures: int = 5
+    """Intentos fallidos seguidos permitidos por correo antes de bloquearlo."""
+
+    login_lock_minutes: int = 15
+    """Duración del bloqueo. Corta a propósito: quien conozca un correo puede
+    bloquear esa cuenta a voluntad, y un bloqueo largo lo convertiría en denegación."""
 
     origin_verify_secret: str = ""
     """Si tiene valor, solo se aceptan peticiones con la cabecera X-Origin-Verify

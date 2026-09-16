@@ -31,6 +31,11 @@ app = FastAPI(
     version="1.0.0",
     description="Implementa contracts/openapi.yaml. Ver también contracts/db-schema.md.",
     lifespan=lifespan,
+    # En producción no se publica el mapa de endpoints; el contrato ya está en
+    # contracts/openapi.yaml para quien lo necesite.
+    docs_url="/docs" if settings.dev_mode else None,
+    redoc_url="/redoc" if settings.dev_mode else None,
+    openapi_url="/openapi.json" if settings.dev_mode else None,
 )
 
 app.add_middleware(

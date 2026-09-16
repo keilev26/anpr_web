@@ -21,7 +21,7 @@ variable "create_budget" {
 }
 
 variable "alert_email" {
-  description = "Correo para las alertas. Solo se usa si create_budget = true."
+  description = "Correo para las alarmas de la API (errores y throttles) y el presupuesto. Vacío = sin alarmas."
   type        = string
   default     = ""
 }

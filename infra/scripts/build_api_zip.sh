@@ -44,7 +44,7 @@ if [[ -z "$PY312" ]]; then
 else
   (cd "$PKG" && env -i PATH=/usr/bin:/bin PYTHONPATH="$PKG" \
      DATABASE_URL="mysql+aiomysql://u:p@127.0.0.1:1/x" \
-     SECRET_KEY="clave-de-prueba-de-humo-no-usar" DEV_MODE=false DB_NULLPOOL=true \
+     SECRET_KEY="clave-de-prueba-de-humo-no-usar" DEV_MODE=false \
      "$PY312" - <<'PY'
 import json
 from app.lambda_handler import handler

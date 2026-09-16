@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 
@@ -10,7 +12,7 @@ from app.core.security import (
     needs_rehash,
     verify_password,
 )
-from app.db.models import User
+from app.db.models import LoginAttempt, User, utcnow
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.schemas.user import UserOut
 
@@ -48,8 +50,45 @@ def _login_response(user: User, response: Response) -> LoginResponse:
     )
 
 
+def _as_utc(dt: datetime) -> datetime:
+    # SQLite devuelve fechas sin zona aunque la columna sea timezone=True.
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+async def _check_not_locked(db: DbSession, email: str) -> LoginAttempt | None:
+    attempt = await db.get(LoginAttempt, email)
+    if attempt and attempt.locked_until:
+        remaining = (_as_utc(attempt.locked_until) - utcnow()).total_seconds()
+        if remaining > 0:
+            # Se responde antes de verificar la contraseña: ni siquiera la correcta
+            # entra, y así el bloqueo no le sirve al atacante como oráculo.
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                "Demasiados intentos fallidos. Inténtalo más tarde.",
+                headers={"Retry-After": str(int(remaining) + 1)},
+            )
+    return attempt
+
+
+async def _register_failure(db: DbSession, email: str, attempt: LoginAttempt | None) -> None:
+    settings = get_settings()
+    if attempt is None:
+        attempt = LoginAttempt(email=email, failures=0)
+        db.add(attempt)
+    if attempt.locked_until:  # bloqueo anterior ya vencido: empieza de cero
+        attempt.locked_until = None
+        attempt.failures = 0
+    attempt.failures += 1
+    if attempt.failures >= settings.login_max_failures:
+        attempt.locked_until = utcnow() + timedelta(minutes=settings.login_lock_minutes)
+    await db.commit()
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(body: LoginRequest, response: Response, db: DbSession) -> LoginResponse:
+    email = str(body.email).lower()
+    attempt = await _check_not_locked(db, email)
+
     stmt = select(User).where(User.email == body.email)
     user = (await db.execute(stmt)).scalar_one_or_none()
 
@@ -60,16 +99,20 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> LoginR
         or not user.password_hash
         or not verify_password(body.password, user.password_hash)
     ):
+        await _register_failure(db, email, attempt)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas")
 
     if not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciales inválidas")
 
+    if attempt is not None:
+        await db.delete(attempt)
+
     # Si Argon2 subió sus parámetros, se regenera el hash aprovechando que
     # aquí sí tenemos la contraseña en claro.
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
-        await db.commit()
+    await db.commit()
 
     return _login_response(user, response)
 

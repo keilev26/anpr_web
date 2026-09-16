@@ -15,6 +15,7 @@ las decisiones; el esquema ejecutable vive en `api/alembic/`.
 | `user.password_hash`, `is_active` | Unificar con la tabla `login`, que hoy existe huérfana |
 | `created_at` / `created_by` | Auditoría: quién autorizó qué placa |
 | Índice `(plate, datetime)` | Consultas por rango de fecha |
+| Tabla `login_attempt` (nueva) | Bloqueo temporal por correo tras intentos fallidos; en BD porque Lambda no comparte memoria entre contenedores |
 
 ## Decisiones que se conservan
 

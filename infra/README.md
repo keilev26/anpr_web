@@ -35,7 +35,9 @@ cuenta personal (solo capa gratuita permanente). Análisis completo en
 | Secretos | SSM Parameter Store; Terraform los crea con relleno y los ignora | Secrets Manager cuesta $0,40/secreto; y así no quedan en texto plano en el estado |
 | Logs | Retención de 7 días, grupos creados por Terraform | Si los crea Lambda, la retención es infinita |
 | Inferencia | x86_64, 10 GB | `paddlepaddle` no publica paquetes aarch64 |
-| BD | Aiven MySQL gratuito, `DB_NULLPOOL=true` | Sin VPC; sin pool porque SQLAlchemy async no reutiliza conexiones entre invocaciones |
+| BD | Aiven MySQL gratuito, pool de 1 conexión con `pool_pre_ping` y reciclado a 300 s | Sin VPC. Mangum reutiliza el bucle de eventos del contenedor, así que la conexión sobrevive entre invocaciones y ahorra ~0,5 s por petición |
+| Cabeceras | `Managed-SecurityHeadersPolicy` en web y API | HSTS, `X-Frame-Options`, `nosniff` y `Referrer-Policy` sin costo |
+| Alarmas | `Errors` y `Throttles` de la API → SNS → `alert_email` | Gratis (10 alarmas); hay que confirmar el correo de suscripción |
 | Protección | Las alertas existentes de la cuenta: **Zero-Spend** (correo desde $0,01) y **Monthly** ($10) | Un tercer presupuesto sería redundante; `create_budget` lo crea si hiciera falta |
 
 ## Herramientas locales
@@ -100,7 +102,11 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan -out=plan.bin                     # revisar ANTES de aplicar
 terraform apply plan.bin
+../scripts/backup_tfstate.sh                    # tras cada apply
 ```
+
+Con `alert_email` en `terraform.tfvars` se crean las alarmas; AWS envía un correo
+de confirmación que hay que aceptar.
 
 **Esperado:** el presupuesto *Zero-Spend* de la cuenta va a avisar por correo cada mes,
 porque la prueba cuesta ~$0,35 (almacenamiento de ECR). No indica un problema;
@@ -185,18 +191,20 @@ Hecha contra la cuenta real con consultas de solo lectura, no contra el código.
 
 ### Pendientes, por prioridad
 
-| # | Prioridad | Hallazgo | Evidencia | Corrección propuesta |
+Estado al 2026-09-16, tras aplicar las correcciones (ver **Resuelto** en la última columna).
+
+| # | Prioridad | Hallazgo | Evidencia | Corrección |
 |---|---|---|---|---|
-| 1 | **Alta** | Límite de **10 ejecuciones simultáneas** de Lambda en la cuenta. La Function URL es pública y **cada petición directa invoca el Lambda aunque responda 403**: saturarla bloquearía la API y la puerta | `get-account-settings`: `ConcurrentExecutions: 10` | Pedir aumento de cuota en Service Quotas (gratis). WAF lo mitigaría, pero cuesta ~$6/mes |
-| 2 | **Alta** | **Login sin límite de intentos** (fuerza bruta). Argon2 lo frena, pero también consume las 10 ejecuciones | Sin rate limit en `/auth/login` | Bloqueo temporal por correo tras N fallos, guardado en la BD (en Lambda la memoria no es compartida) |
-| 3 | **Alta** | **Documentación de la API pública**: mapa completo de endpoints | `/api/docs`, `/api/redoc`, `/api/openapi.json` → 200 sin sesión | Desactivarla cuando `DEV_MODE=false` |
-| 4 | Media | **Sin cabeceras de seguridad**: ni HSTS, ni `X-Frame-Options` (clickjacking), ni `X-Content-Type-Options` | `curl -I`: ninguna presente | Política administrada `Managed-SecurityHeadersPolicy` de CloudFront, gratis |
-| 5 | Media | **~0,65 s por petición abriendo conexión a Aiven**. `DB_NULLPOOL` fue una precaución innecesaria: Mangum 0.22 reutiliza el mismo event loop en el contenedor | Con BD ~1,0 s; sin BD ~0,35 s | Pool pequeño con `pool_pre_ping` y `pool_recycle` |
-| 6 | Media | Usuario IAM con `AdministratorAccess` y clave permanente | `list-access-keys`: 1 activa | Desactivar la clave al terminar la prueba |
-| 7 | Baja | Sin alarmas: un fallo de la API pasaría inadvertido | Sin alarmas de CloudWatch | Alarma de `Errors`/`Throttles` por correo (10 alarmas gratuitas) |
+| 1 | **Alta** | Límite de **10 ejecuciones simultáneas** de Lambda en la cuenta. La Function URL es pública y **cada petición directa invoca el Lambda aunque responda 403**: saturarla bloquearía la API y la puerta | `get-account-settings`: `ConcurrentExecutions: 10` | **Pendiente (lo solicita el usuario):** Service Quotas → AWS Lambda → *Concurrent executions* → 1000 (gratis). La alarma de `Throttles` avisa si ocurre. WAF lo mitigaría, pero cuesta ~$6/mes |
+| 2 | **Alta** | **Login sin límite de intentos** (fuerza bruta). Argon2 lo frena, pero también consume las 10 ejecuciones | Sin rate limit en `/auth/login` | **Resuelto:** tabla `login_attempt`; 5 fallos seguidos bloquean el correo 15 min con 429 y `Retry-After`, exista o no el correo. Verificado en vivo |
+| 3 | **Alta** | **Documentación de la API pública**: mapa completo de endpoints | `/api/docs`, `/api/redoc`, `/api/openapi.json` → 200 sin sesión | **Resuelto:** desactivada con `DEV_MODE=false`; las tres rutas dan 404 |
+| 4 | Media | **Sin cabeceras de seguridad**: ni HSTS, ni `X-Frame-Options` (clickjacking), ni `X-Content-Type-Options` | `curl -I`: ninguna presente | **Resuelto:** `Managed-SecurityHeadersPolicy` en ambos comportamientos; verificado con `curl -I` |
+| 5 | Media | **~0,65 s por petición abriendo conexión a Aiven**. `DB_NULLPOOL` fue una precaución innecesaria: Mangum 0.22 reutiliza el mismo event loop en el contenedor | Con BD ~1,0 s; sin BD ~0,35 s | **Resuelto:** pool de 1 conexión. En caliente ~0,55 s con BD (antes ~1,0 s); logs sin errores de bucle de eventos |
+| 6 | Media | Usuario IAM con `AdministratorAccess` y clave permanente | `list-access-keys`: 1 activa | Pendiente: desactivar la clave al terminar la prueba |
+| 7 | Baja | Sin alarmas: un fallo de la API pasaría inadvertido | Sin alarmas de CloudWatch | **Resuelto:** 2 alarmas + tema SNS. Falta confirmar la suscripción desde el correo |
 | 8 | Baja | TLS mínimo declarado `TLSv1`; con el certificado por defecto no se puede subir | `MinimumProtocolVersion: TLSv1` | Requiere dominio propio. En la práctica ya rechaza TLS 1.1 |
-| 9 | Baja | IPv6 desactivado | `IsIPV6Enabled: false` | Activarlo, sin costo |
-| 10 | Baja | Estado de Terraform con permisos 664 y sin respaldo | Contiene el secreto de origen | **Corregido a 600.** Falta respaldarlo |
+| 9 | Baja | IPv6 desactivado | `IsIPV6Enabled: false` | **Resuelto:** activado; la distribución responde por IPv6 |
+| 10 | Baja | Estado de Terraform con permisos 664 y sin respaldo | Contiene el secreto de origen | **Resuelto:** permisos 600 y `infra/scripts/backup_tfstate.sh` (copias en `/data/anpr/backups/terraform`, 700/600, conserva 10). Ejecutarlo tras cada apply |
 
 ## Estado
 
@@ -209,9 +217,10 @@ Desplegado el 2026-09-16 en la cuenta de prueba: **https://d22z1x91kqav4d.cloudf
 - [x] Verificado en vivo: `/api/health` con BD conectada; la Function URL directa responde
       403; los errores de la API llegan como JSON y no como la web; las rutas del SPA
       sirven `index.html`; HTTP redirige a HTTPS
-- [ ] **Latencia:** 5,2 s en frío y **~1 s en caliente** por petición, dominada por
-      abrir una conexión TLS nueva a Aiven en cada una (`DB_NULLPOOL`). Aceptable para
-      la prueba, pero ajustado para el presupuesto de 4 s del camino crítico.
-      Revisar reutilizando conexiones dentro del mismo contenedor.
+- [x] Correcciones de la revisión aplicadas (2026-09-16): bloqueo de login, docs ocultas,
+      cabeceras de seguridad, pool de conexiones (~0,55 s en caliente, antes ~1 s),
+      alarmas, IPv6 y respaldo del estado
+- [ ] Confirmar la suscripción SNS de las alarmas (correo de AWS)
+- [ ] Pedir el aumento de la cuota de concurrencia de Lambda (10 → 1000)
 - [ ] Mover Docker a `/data`, exportar ONNX y construir la imagen de inferencia (paso 5)
 - [ ] Probar el camino crítico de punta a punta (paso 6)

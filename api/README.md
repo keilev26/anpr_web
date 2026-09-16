@@ -42,9 +42,14 @@ en `infra/README.md`. Ajustes que solo se activan en AWS (vacíos en local):
 |---|---|
 | `SSM_PREFIX` | Carga los secretos desde SSM Parameter Store al arrancar |
 | `DB_SSL_CA` | TLS hacia la base de datos con la CA de Aiven |
-| `DB_NULLPOOL` | Sin pool: evita reutilizar conexiones entre invocaciones |
+| `DB_POOL_SIZE`, `DB_POOL_RECYCLE` | Pool de 1 conexión reciclada a los 300 s (solo MySQL). Mangum reutiliza el bucle de eventos, así que la conexión sobrevive entre invocaciones |
+| `DEV_MODE=false` | Cookie `Secure` y sin `/docs`, `/redoc` ni `/openapi.json` |
 | `ORIGIN_VERIFY_SECRET` | Rechaza con 403 lo que no llegue desde CloudFront |
 | `INFER_FUNCTION_NAME` | Usa el Lambda de inferencia en vez del stub |
+
+`POST /auth/login` responde **429** con `Retry-After` tras 5 fallos seguidos del mismo
+correo, durante 15 min (`LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES`). Se guarda en la
+tabla `login_attempt`, no en memoria: los contenedores de Lambda no la comparten.
 
 Respuestas nuevas de `POST /v1/detections`: **413** si la ráfaga supera 4 MB (el
 límite de invocación síncrona de Lambda es 6 MB y los frames van en base64), y
