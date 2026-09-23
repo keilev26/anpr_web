@@ -59,13 +59,43 @@ controlas (visita técnica, electricista, compra de sensores con demoras de
 importación). El software se recupera con horas extra; un pedido de fotoceldas que
 tarda tres semanas, no.
 
+## Convivencia con el mando manual
+
+El selector FWD / STOP / REV existente **se conserva como mando manual**. Pero no se
+pueden cablear los relés de la Pi en paralelo con él sin más: si el vigilante pide un
+sentido y la Pi el otro, `FWD` y `REV` quedarían unidos a `0V` a la vez.
+
+Por eso se añade un **selector MANUAL / AUTO** de varios contactos que conecta a los
+bornes `FWD`/`REV` **o** el selector manual **o** los relés de la Pi, nunca ambos. Los
+finales de carrera, la fotocelda y la parada de emergencia quedan **después** del
+selector MANUAL / AUTO, así que protegen también el modo manual: hoy el vigilante debe
+soltar la perilla a tiempo; con esto el portón se detiene solo en el tope.
+
+## Particularidades de la pluma
+
+- **Finales de carrera en el eje**, accionados por una leva: uno a 0° (horizontal,
+  cerrada) y otro a ~90° (vertical, abierta). No en el extremo del brazo.
+- **Fotocelda a lo ancho del carril, bajo la trayectoria del brazo** (~50 cm de altura):
+  impide que la pluma baje sobre un auto o una persona.
+- **Cierre automático** cuando el vehículo terminó de pasar: la fotocelda se interrumpe
+  y se libera. Si nunca se interrumpe (el auto no avanzó), cierra tras un tiempo
+  máximo. Nunca cierra con la fotocelda interrumpida.
+- **El auto se detiene frente a la pluma**: la ráfaga se toma con el vehículo quieto,
+  sin desenfoque por movimiento. El sensor de presencia va donde el auto se detiene.
+- **Verificar en sitio:** que el brazo esté equilibrado (resorte o contrapeso) y que
+  haya **desbloqueo manual** para levantarla sin energía.
+
 ## Datos pendientes de verificar en sitio
 
-1. **Cómo se invierte el giro hoy** — ¿hay interruptor FWD/REV cableado?
+1. ~~Cómo se invierte el giro hoy~~ **Resuelto (2026-09-22):** con el selector
+   FWD / STOP / REV de la caja de mando, junto a la perilla de velocidad, sin recablear
+   el motor. Los relés de la Pi unirán `FWD`-`0V` o `REV`-`0V` y la perilla queda fija.
+   Ver "Convivencia con el mando manual".
 2. **Foto de la bornera del UX-52 instalado** — la serigrafía varía entre clones
 3. **Potencia y tipo del motor** (W; monofásico con condensador de arranque)
 4. **Tiempo de recorrido completo** en segundos → define el timeout de marcha
-5. **Tipo de portón**: pluma, corredizo o batiente
+5. ~~Tipo de portón~~ **Resuelto (2026-09-22):** **pluma** (barrera vehicular: brazo
+   horizontal que gira ~90° sobre un eje lateral). Ver "Particularidades de la pluma".
 
 ## BOM estimado
 

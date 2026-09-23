@@ -24,6 +24,7 @@ definición de terminado.
 
 | Archivo | Contenido |
 |---|---|
+| `PENDIENTES.md` | **Lista viva de lo que falta**, por frente, con el checklist de la visita a la puerta |
 | `WORKSTREAMS.md` | División en frentes, contratos, dependencias, hitos de integración |
 | `PLAN_AWS.md` | Arquitectura objetivo, costos (≈ $23/mes), fases, runbook del legacy |
 | `MEJORAS.md` | Deuda técnica del proyecto original |

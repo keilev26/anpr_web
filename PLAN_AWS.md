@@ -479,8 +479,8 @@ Bloqueantes para cerrar costo y diseño:
 
 Bloqueantes para la Fase 5, a verificar en sitio:
 
-4. **Cómo se invierte el giro hoy.** ¿Hay un interruptor FWD/REV cableado, o el motor gira en un solo sentido?
+4. ~~**Cómo se invierte el giro hoy.**~~ **Resuelto:** selector FWD / STOP / REV en la caja de mando del UX-52; ver `hardware/README.md`.
 5. **Foto de la bornera del UX-52 instalado.** La serigrafía varía entre clones.
 6. **Potencia y tipo del motor** (W; monofásico con condensador de arranque).
 7. **Tiempo de recorrido completo** en segundos, que define el timeout de marcha.
-8. **Tipo de portón**: pluma, corredizo o batiente.
+8. ~~**Tipo de portón**~~ **Resuelto:** pluma (barrera vehicular); ver `hardware/README.md`.

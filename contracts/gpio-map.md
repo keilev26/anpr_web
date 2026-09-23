@@ -43,3 +43,6 @@ hacen, el cableado está mal y no se pone en producción.
 - Rechaza órdenes nuevas mientras hay movimiento en curso.
 - Al arrancar asume posición desconocida y hace ciclo de referencia hacia "cerrado".
 - Idempotencia por `event_id`.
+- Cierre automático de la pluma: tras abrir, espera a que `PHOTOCELL_OK` se interrumpa
+  y se libere (el vehículo pasó) o un tiempo máximo. **Nunca ordena cerrar con la
+  fotocelda interrumpida.**
