@@ -14,6 +14,7 @@ siempre el valor **inseguro** (en tope, fotocelda interrumpida, emergencia, modo
 
 import logging
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
@@ -129,14 +130,22 @@ class SimGpio(Gpio):
         self._client = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION2, client_id=f"anpr-{service}-simgpio"
         )
+        self._connected = threading.Event()
+        self._pending = []
+        self._out_state = {n: False for n in self.outputs}
         self._client.on_connect = self._on_connect
         self._client.on_message = self._on_message
         self._client.connect_async(mqtt_cfg.host, mqtt_cfg.port, keepalive=15)
         self._client.loop_start()
+        self._connected.wait(timeout=3)
 
     def _on_connect(self, client, userdata, flags, reason_code, properties) -> None:
         for name in self.inputs:
             client.subscribe(f"sim/gpio/in/{name}", qos=1)
+        # Lo publicado mientras el broker estaba caído se perdió: reenviar el estado actual.
+        for name, on in self._out_state.items():
+            client.publish(f"sim/gpio/out/{name}", b"1" if on else b"0", qos=1, retain=True)
+        self._connected.set()
 
     def _on_message(self, client, userdata, msg) -> None:
         name = msg.topic.rsplit("/", 1)[-1]
@@ -149,11 +158,27 @@ class SimGpio(Gpio):
         with self._lock:
             return self._levels[name]
 
+    @staticmethod
+    def _settled(info) -> bool:
+        """Enviado, o fallido sin remedio (broker caído): en ambos casos no hay que esperar."""
+        try:
+            return info.is_published()
+        except (RuntimeError, ValueError):
+            return True
+
     def _write(self, name: str, on: bool) -> None:
-        self._client.publish(f"sim/gpio/out/{name}", b"1" if on else b"0", qos=1, retain=True)
+        self._out_state[name] = on
+        info = self._client.publish(
+            f"sim/gpio/out/{name}", b"1" if on else b"0", qos=1, retain=True
+        )
+        self._pending = [i for i in self._pending if not self._settled(i)] + [info]
 
     def close(self) -> None:
         super().close()
+        # Esperar a que salga lo publicado (p. ej. relés a 0) antes de desconectar.
+        deadline = time.monotonic() + 2
+        while not all(map(self._settled, self._pending)) and time.monotonic() < deadline:
+            time.sleep(0.02)
         self._client.disconnect()
         self._client.loop_stop()
 

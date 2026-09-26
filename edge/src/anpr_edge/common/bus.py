@@ -19,7 +19,7 @@ import threading
 import paho.mqtt.client as mqtt
 from paho.mqtt.enums import CallbackAPIVersion
 
-from anpr_edge.common.config import MqttConfig
+from anpr_edge.common.config import MqttConfig, read_secret
 from anpr_edge.common.messages import InvalidMessage, Message, ServiceStatus, decode
 
 log = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ class Bus:
             clean_session=True,
             protocol=mqtt.MQTTv311,
         )
-        if cfg.username:
-            password = cfg.password_file.read_text().strip() if cfg.password_file else None
-            self._client.username_pw_set(cfg.username, password)
+        if cfg.auth:
+            password = read_secret("mqtt_password", cfg.password_dir / f"{service}.pw")
+            self._client.username_pw_set(service, password)
         self._client.will_set(
             status_topic(service),
             ServiceStatus(service=service, status="offline").encode(),
@@ -63,14 +63,16 @@ class Bus:
     def connected(self) -> bool:
         return self._connected.is_set()
 
-    def subscribe(self, model: type[Message]) -> None:
-        self._subs[model.TOPIC] = model
+    def subscribe(self, model: type[Message], topic: str | None = None) -> None:
+        """`topic` admite comodines MQTT, p. ej. `svc/+/status` con ServiceStatus."""
+        topic = topic or model.TOPIC
+        self._subs[topic] = model
         if self.connected:
-            self._client.subscribe(model.TOPIC, qos=1)
+            self._client.subscribe(topic, qos=1)
 
-    def publish(self, msg: Message, retain: bool = False) -> bool:
+    def publish(self, msg: Message, retain: bool = False, topic: str | None = None) -> bool:
         """False si no se pudo encolar (p. ej. broker caído): el llamador decide qué hacer."""
-        info = self._client.publish(msg.TOPIC, msg.encode(), qos=1, retain=retain)
+        info = self._client.publish(topic or msg.TOPIC, msg.encode(), qos=1, retain=retain)
         return info.rc == mqtt.MQTT_ERR_SUCCESS
 
     def start(self) -> None:
@@ -111,6 +113,10 @@ class Bus:
 
     def _on_message(self, client, userdata, msg: mqtt.MQTTMessage) -> None:
         model = self._subs.get(msg.topic)
+        if model is None:
+            model = next(
+                (m for t, m in self._subs.items() if mqtt.topic_matches_sub(t, msg.topic)), None
+            )
         if model is None:
             return
         try:

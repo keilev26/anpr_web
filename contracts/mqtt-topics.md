@@ -13,6 +13,8 @@ gate/fault         {"code", "detail", "ts"}
 gate/verdict       {"event_id", "outcome": "open"|"deny"|"unreadable"|"rejected"
                              |"unavailable"|"late", "plate", "http_status", "latency_ms", "ts"}
 svc/<servicio>/status  {"service", "status": "online"|"offline"}      retenido + Last Will
+camera/status      {"online", "fps", "last_frame_age_s", "ts"}         retenido
+health/summary     {"ok", "problems", "services", "gate_state", "cloud", "ts"}   retenido
 ```
 
 Implementación: `edge/src/anpr_edge/common/messages.py` (un modelo pydantic por tópico).
@@ -28,6 +30,9 @@ Implementación: `edge/src/anpr_edge/common/messages.py` (un modelo pydantic por
 - **Last Will**: si un servicio muere, el broker publica `offline` en su nombre.
 - **`sim/gpio/in/<SEÑAL>` y `sim/gpio/out/<SEÑAL>`**: solo en la laptop, para el GPIO
   simulado. En la Pi la ACL de Mosquitto los deniega.
+- **ACL** (`edge/deploy/mosquitto/anpr.acl`): cada servicio entra con su usuario y solo
+  puede publicar sus tópicos. `gate/command` solo lo publica `uplink`; `gate/state`
+  solo `gate`; nadie puede escribir el estado de otro servicio.
 
 ## Quién publica y quién escucha
 
@@ -40,6 +45,8 @@ Implementación: `edge/src/anpr_edge/common/messages.py` (un modelo pydantic por
 | `gate/fault` | cualquiera | `anpr-health` |
 | `gate/verdict` | `anpr-uplink` | `anpr-trigger` (reintento si ilegible), `anpr-health` |
 | `svc/<servicio>/status` | cada servicio (y el broker, como Last Will) | `anpr-health` |
+| `camera/status` | `anpr-capture` | `anpr-health` |
+| `health/summary` | `anpr-health` | diagnóstico (`mosquitto_sub`) |
 
 **`anpr-gate` es el único suscriptor de `gate/command` y el único que toca GPIO.**
 No tiene acceso a internet. Recibe órdenes del bus local y las valida contra su

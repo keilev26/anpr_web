@@ -49,6 +49,9 @@ async def create_detection(
     event_id: str = Form(...),
     captured_at: datetime = Form(...),
     frames: list[UploadFile] = File(...),
+    # Reenvío de un evento que no obtuvo respuesta a tiempo: la Pi no abrió, así que
+    # se registra con gate_opened=false aunque la placa esté autorizada.
+    late: bool = Form(False),
     reader: PlateReader = Depends(get_plate_reader),
     _: None = Depends(verify_device),
 ) -> Verdict:
@@ -114,7 +117,7 @@ async def create_detection(
         authorized=authorized,
         confidence=confidence,
         camera_id=gate_id,
-        gate_opened=authorized,
+        gate_opened=authorized and not late,
         latency_ms=latency,
         event_uuid=event_id,
         user_id=owner.id if owner else None,

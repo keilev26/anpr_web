@@ -1,0 +1,34 @@
+# ACL del bus interno (contracts/mqtt-topics.md). Todo lo no listado está prohibido,
+# incluido sim/#, que solo existe en la laptop.
+
+# Cada servicio anuncia solo su propio estado (y su Last Will).
+pattern write svc/%u/status
+
+user trigger
+topic read gate/verdict
+topic read gate/state
+topic write gate/trigger
+
+user capture
+topic read gate/trigger
+topic write gate/frames_ready
+topic write gate/fault
+topic write camera/status
+
+# El ÚNICO que puede ordenar abrir.
+user uplink
+topic read gate/frames_ready
+topic write gate/command
+topic write gate/verdict
+
+# El único que publica el estado de la pluma.
+user gate
+topic read gate/command
+topic write gate/state
+topic write gate/fault
+
+user health
+topic read svc/+/status
+topic read gate/#
+topic read camera/status
+topic write health/summary

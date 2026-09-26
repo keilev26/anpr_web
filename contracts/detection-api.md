@@ -6,6 +6,7 @@ POST /v1/detections          Content-Type: multipart/form-data
   event_id     uuid          idempotencia: reenviar no abre dos veces
   captured_at  ISO8601 UTC
   frames[]     1..10 JPEG     enviar al menos 3: ver "Consenso" abajo
+  late         bool, opcional  true = reenvío tardío solo para registro (ver abajo)
 
 200 OK
 {
@@ -36,6 +37,11 @@ visual del 2026-09-16 hubo lecturas erróneas con aspecto válido y confianza al
 (`T5Q-640` → `T50-640`, 0,91); el mismo error rara vez se repite en dos fotos.
 Con menos fotogramas que `MIN_AGREEMENT` la placa **se rechaza**, no se relaja
 el requisito. **La Pi debe enviar al menos 3** para tener margen si uno sale borroso.
+
+**Reenvíos tardíos (`late=true`).** Ante 5xx o timeout la Pi no abre y guarda el
+evento. Lo reenvía más tarde con `late=true` para que quede en el historial: la API lo
+registra con `gate_opened=false` aunque la placa esté autorizada, y la Pi ignora la
+respuesta. Sin este campo, el dashboard mostraría como abierto un portón que no se movió.
 
 ## Errores
 

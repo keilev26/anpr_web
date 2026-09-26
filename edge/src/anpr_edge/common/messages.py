@@ -87,8 +87,31 @@ class ServiceStatus(Message):
     status: Literal["online", "offline"]
 
 
+class CameraStatus(Message):
+    """Retenido. Lo publica `anpr-capture` periódicamente."""
+
+    TOPIC = "camera/status"
+    online: bool
+    fps: float | None = None
+    last_frame_age_s: float | None = None
+    ts: AwareDatetime
+
+
+class HealthSummary(Message):
+    """Retenido. Resumen de `anpr-health`: `mosquitto_sub -t health/summary -v`."""
+
+    TOPIC = "health/summary"
+    ok: bool
+    problems: list[str]
+    services: dict[str, str]
+    gate_state: str | None = None
+    cloud: Literal["ok", "degraded", "unreachable", "unknown"]
+    ts: AwareDatetime
+
+
 BY_TOPIC: dict[str, type[Message]] = {
-    m.TOPIC: m for m in (Trigger, FramesReady, Command, GateState, Fault, Verdict)
+    m.TOPIC: m
+    for m in (Trigger, FramesReady, Command, GateState, Fault, Verdict, CameraStatus, HealthSummary)
 }
 
 

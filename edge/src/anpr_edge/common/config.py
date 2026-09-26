@@ -28,8 +28,10 @@ class _Section(BaseModel):
 class MqttConfig(_Section):
     host: str = "127.0.0.1"
     port: int = 1883
-    username: str | None = None
-    password_file: Path | None = None
+    # En la Pi, cada servicio entra con su propio usuario (= nombre del servicio) y la
+    # ACL de Mosquitto limita qué puede publicar. La contraseña llega por LoadCredential.
+    auth: bool = False
+    password_dir: Path = Path("/etc/anpr/mqtt")
 
 
 class CameraConfig(_Section):
@@ -48,6 +50,13 @@ class CaptureConfig(_Section):
     spool_dir: Path = Path("/var/spool/anpr")
     # Por debajo de los 4 MB de la API para no recibir un 413.
     max_burst_bytes: int = Field(default=3_500_000, gt=0)
+    buffer_s: float = Field(default=2.0, gt=0, description="Frames recientes en memoria")
+    timeout_s: float = Field(
+        default=3.0, gt=0, description="Plazo para juntar la ráfaga tras el disparo"
+    )
+    trigger_max_age_s: float = Field(
+        default=3.0, gt=0, description="Un disparo más viejo se ignora (llegó tarde)"
+    )
 
 
 class UplinkConfig(_Section):
@@ -59,6 +68,41 @@ class UplinkConfig(_Section):
     )
     connect_timeout_s: float = Field(default=2.0, gt=0)
     request_timeout_s: float = Field(default=5.0, gt=0)
+    # Eventos que no llegaron a tiempo: se reenvían solo para dejar registro.
+    pending_retry_s: float = Field(default=60.0, gt=0)
+    pending_max_days: float = Field(default=7.0, gt=0)
+    # Limpieza del spool: fotos ya enviadas.
+    keep_sent_hours: float = Field(default=24.0, ge=0)
+    spool_max_mb: float = Field(default=1024.0, gt=0)
+
+
+class TriggerConfig(_Section):
+    debounce_ms: int = Field(default=300, ge=0, description="Presencia estable para disparar")
+    release_ms: int = Field(default=1500, ge=0, description="Ausencia estable = el auto se fue")
+    verdict_timeout_s: float = Field(default=10.0, gt=0)
+    max_attempts: int = Field(default=3, ge=1, le=10)
+    retry_delay_s: float = Field(default=1.5, ge=0)
+
+
+class GateConfig(_Section):
+    # Recorrido medido en sitio (pendiente de la visita). Mientras tanto, conservador.
+    travel_open_s: float = Field(default=6.0, gt=0)
+    travel_close_s: float = Field(default=6.0, gt=0)
+    travel_margin: float = Field(default=0.2, ge=0, le=1)
+    reverse_pause_s: float = Field(default=0.5, ge=0.5)
+    close_delay_s: float = Field(
+        default=1.0, ge=0, description="Espera tras pasar el auto antes de bajar"
+    )
+    open_hold_max_s: float = Field(
+        default=30.0, gt=0, description="Si nadie cruza la fotocelda, baja tras este tiempo"
+    )
+    input_debounce_ms: int = Field(default=60, ge=0)
+    open_relay: Literal["RELAY_FWD", "RELAY_REV"] = "RELAY_FWD"
+
+
+class HealthConfig(_Section):
+    check_every_s: float = Field(default=30.0, gt=0)
+    services: list[str] = ["trigger", "capture", "uplink", "gate"]
 
 
 class GpioConfig(_Section):
@@ -73,6 +117,9 @@ class EdgeConfig(_Section):
     capture: CaptureConfig = CaptureConfig()
     uplink: UplinkConfig = UplinkConfig()
     gpio: GpioConfig = GpioConfig()
+    trigger: TriggerConfig = TriggerConfig()
+    gate: GateConfig = GateConfig()
+    health: HealthConfig = HealthConfig()
 
 
 def load_config(path: Path | None = None) -> EdgeConfig:

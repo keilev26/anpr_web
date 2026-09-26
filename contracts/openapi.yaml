@@ -346,6 +346,12 @@ paths:
                   minItems: 1
                   maxItems: 10
                   items: { type: string, format: binary }
+                late:
+                  type: boolean
+                  default: false
+                  description: |
+                    Reenvío de un evento que no obtuvo respuesta a tiempo. La Pi no
+                    abrió, así que se registra con gate_opened=false. La Pi ignora el veredicto.
       responses:
         "200":
           description: Veredicto

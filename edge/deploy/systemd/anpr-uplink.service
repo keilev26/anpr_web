@@ -1,0 +1,39 @@
+# Generado para el edge ANPR (F5). Instalar con edge/deploy/install.sh.
+[Unit]
+Description=ANPR: subida de ráfagas a la nube y veredictos
+After=mosquitto.service network-online.target
+Wants=mosquitto.service network-online.target
+# Nunca dejar de reintentar: un servicio de campo no puede quedarse abajo.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+ExecStart=/opt/anpr-edge/venv/bin/anpr-uplink
+LoadCredential=device_api_key:/etc/anpr/secrets/device_api_key
+# El reintento dentro del plazo puede durar varios segundos: margen para el watchdog.
+WatchdogSec=30
+ReadWritePaths=/var/spool/anpr
+MemoryMax=384M
+Restart=always
+RestartSec=1
+User=anpr-uplink
+Group=anpr
+Environment=ANPR_EDGE_CONFIG=/etc/anpr/edge.toml
+Environment=PYTHONUNBUFFERED=1
+LoadCredential=mqtt_password:/etc/anpr/mqtt/uplink.pw
+# Endurecimiento: sin privilegios, sistema de archivos de solo lectura salvo lo indicado.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

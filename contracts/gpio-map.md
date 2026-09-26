@@ -44,6 +44,12 @@ hacen, el cableado está mal y no se pone en producción.
 - Rechaza órdenes nuevas mientras hay movimiento en curso.
 - Al arrancar asume posición desconocida y hace ciclo de referencia hacia "cerrado".
 - Idempotencia por `event_id`.
+- Si `anpr-gate` termina por cualquier motivo (incluido `kill -9`), systemd ejecuta
+  `anpr-gate-safe-off` (`ExecStopPost=`), que pone ambos relés a 0.
+- En MANUAL (`MODE_AUTO` alto) no acciona nada. Salir de una falla exige pasar por MANUAL.
+
+Implementación: `edge/src/anpr_edge/gate/machine.py`. Números BCM propuestos en
+`edge/deploy/edge.toml.example`, a confirmar con F6.
 - Cierre automático de la pluma: tras abrir, espera a que `PHOTOCELL_OK` se interrumpa
   y se libere (el vehículo pasó) o un tiempo máximo. **Nunca ordena cerrar con la
   fotocelda interrumpida.**

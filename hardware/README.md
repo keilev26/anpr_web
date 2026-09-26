@@ -59,6 +59,14 @@ controlas (visita técnica, electricista, compra de sensores con demoras de
 importación). El software se recupera con horas extra; un pedido de fotoceldas que
 tarda tres semanas, no.
 
+## Nota de F5 para el cableado
+
+- **Resistencias pull-down** en las entradas de los módulos de relé: si un proceso
+  muere y la línea GPIO queda suelta, el relé debe quedar abierto.
+- El selector MANUAL/AUTO necesita un **contacto adicional hacia la Pi** (`MODE_AUTO`,
+  a masa en AUTO): la Pi debe saber que no manda.
+- Verificar en banco qué relé sube la pluma (`open_relay` en `/etc/anpr/edge.toml`).
+
 ## Convivencia con el mando manual
 
 El selector FWD / STOP / REV existente **se conserva como mando manual**. Pero no se

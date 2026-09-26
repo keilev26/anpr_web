@@ -19,13 +19,22 @@ from anpr_edge.common.messages import Message
 WATCHDOG_EVERY_S = 1.0
 
 
+class TooManyErrors(RuntimeError):
+    pass
+
+
 class Service:
     tick_s: float = 0.05
+    # Errores seguidos en on_tick antes de rendirse. Un fallo aislado se registra y se
+    # sigue; uno persistente termina el proceso para que systemd lo reinicie limpio,
+    # en vez de quedarse registrando el mismo error para siempre.
+    max_consecutive_errors: int = 50
 
     def __init__(self, bus: Bus, log: logging.Logger) -> None:
         self.bus = bus
         self.log = log
         self._running = False
+        self._tick_errors = 0
 
     # ---------- a implementar por cada servicio ----------
 
@@ -78,12 +87,19 @@ class Service:
                 msg = self.bus.inbox.get_nowait()
             except queue.Empty:
                 msg = None
-        self._safe(self.on_tick, time.monotonic())
+        if self._safe(self.on_tick, time.monotonic()):
+            self._tick_errors = 0
+        else:
+            self._tick_errors += 1
+            if self._tick_errors >= self.max_consecutive_errors:
+                raise TooManyErrors(f"{self._tick_errors} errores seguidos en on_tick")
 
-    def _safe(self, fn, *args) -> None:
+    def _safe(self, fn, *args) -> bool:
         # Una excepción en la lógica se registra y el servicio sigue: un mensaje raro no
-        # debe tumbar el proceso. Si la lógica queda inservible, el watchdog lo reinicia.
+        # debe tumbar el proceso.
         try:
             fn(*args)
+            return True
         except Exception:
             self.log.exception("Error en %s", fn.__name__)
+            return False

@@ -63,8 +63,9 @@ def test_config_sin_archivo_falla(tmp_path):
 def test_config_de_ejemplo_es_valida():
     from pathlib import Path
 
-    for name in ("dev.toml",):
-        load_config(Path(__file__).parents[1] / "config" / name)
+    edge = Path(__file__).parents[1]
+    for path in (edge / "config" / "dev.toml", edge / "deploy" / "edge.toml.example"):
+        load_config(path)
 
 
 def test_secreto_desde_credentials_directory(tmp_path, monkeypatch):
@@ -167,7 +168,9 @@ class FakeMqtt:
         self.published, self.subscribed, self.will = [], [], None
         self.on_connect = self.on_disconnect = self.on_message = None
 
-    def username_pw_set(self, *a): ...
+    def username_pw_set(self, user, password):
+        self.auth = (user, password)
+
     def will_set(self, topic, payload, qos, retain):
         self.will = (topic, payload, retain)
 
@@ -251,3 +254,46 @@ def test_log_json_con_campos_extra():
 
 def test_config_por_defecto_apunta_a_la_nube():
     assert EdgeConfig().uplink.api_url.startswith("https://")
+
+
+def test_errores_persistentes_terminan_el_servicio_para_que_systemd_lo_reinicie():
+    from anpr_edge.common.service import TooManyErrors
+
+    bus, _ = make_bus()
+
+    class Roto(Service):
+        max_consecutive_errors = 3
+
+        def on_tick(self, now):
+            raise RuntimeError("siempre")
+
+    svc = Roto(bus, logging.getLogger("t"))
+    svc.step()
+    svc.step()
+    with pytest.raises(TooManyErrors):
+        svc.step()
+
+
+def test_un_error_aislado_no_acumula():
+    bus, _ = make_bus()
+
+    class AVeces(Service):
+        max_consecutive_errors = 2
+        n = 0
+
+        def on_tick(self, now):
+            self.n += 1
+            if self.n % 2:
+                raise RuntimeError("a veces")
+
+    svc = AVeces(bus, logging.getLogger("t"))
+    for _ in range(10):
+        svc.step()
+
+
+def test_cada_servicio_entra_al_broker_con_su_usuario(tmp_path, monkeypatch):
+    monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
+    (tmp_path / "gate.pw").write_text("secreto\n")
+    fake = FakeMqtt()
+    Bus("gate", MqttConfig(auth=True, password_dir=tmp_path), client=fake)
+    assert fake.auth == ("gate", "secreto")

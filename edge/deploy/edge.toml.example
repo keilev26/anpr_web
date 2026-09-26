@@ -1,0 +1,49 @@
+# /etc/anpr/edge.toml en la Raspberry Pi 5. Lo instala deploy/install.sh (640 root:anpr).
+# Cualquier clave desconocida o valor inválido impide arrancar: es a propósito.
+
+[mqtt]
+auth = true   # usuario por servicio + ACL (deploy/mosquitto/anpr.acl)
+
+[camera]
+rpc_url = "http://192.168.122.1:10000/sony/camera"   # red Wi-Fi de la Sony
+liveview_size = "M"
+
+[capture]
+frames = 5
+spacing_ms = 150
+spool_dir = "/var/spool/anpr"
+
+[uplink]
+api_url = "https://d22z1x91kqav4d.cloudfront.net/api"
+gate_id = "puerta-2"
+# La clave llega por LoadCredential desde /etc/anpr/secrets/device_api_key.
+
+[gpio]
+backend = "gpiozero"
+
+[gpio.pins]
+# PROPUESTA de números BCM, a confirmar con F6 al cerrar el gabinete
+# (contracts/gpio-map.md). Sin todos los pines, los servicios no arrancan.
+RELAY_FWD = 17
+RELAY_REV = 27
+LED_STATUS = 22
+LIMIT_OPEN = 5
+LIMIT_CLOSED = 6
+PHOTOCELL_OK = 13
+ESTOP_OK = 19
+PRESENCE = 26
+MANUAL_BTN = 21
+MODE_AUTO = 20
+
+[gate]
+# PENDIENTE de la visita técnica: cronometrar subida y bajada (PENDIENTES.md §1).
+travel_open_s = 6.0
+travel_close_s = 6.0
+travel_margin = 0.2
+# Qué relé sube la pluma depende del cableado del UX-52: verificar en banco.
+open_relay = "RELAY_FWD"
+close_delay_s = 1.0
+open_hold_max_s = 30.0
+
+[trigger]
+max_attempts = 3

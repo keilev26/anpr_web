@@ -19,8 +19,19 @@ sim = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9", "pillow>=10
 dev = ["pytest>=8.3", "ruff>=0.9"]
 
 [project.scripts]
+# Servicios (uno por unidad systemd)
+anpr-trigger = "anpr_edge.trigger.service:main"
+anpr-capture = "anpr_edge.capture.service:main"
+anpr-uplink = "anpr_edge.uplink.service:main"
+anpr-gate = "anpr_edge.gate.service:main"
+anpr-gate-safe-off = "anpr_edge.gate.safe_off:main"
+anpr-health = "anpr_edge.health.service:main"
+# Herramientas y simuladores (solo laptop)
 anpr-probe-camera = "anpr_edge.tools.probe_camera:main"
 anpr-sim-camera = "anpr_edge.sim.camera:main"
+anpr-sim-cloud = "anpr_edge.sim.cloud:main"
+anpr-sim-plant = "anpr_edge.sim.plant:main"
+anpr-dev = "anpr_edge.dev.run_all:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -31,6 +42,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Así declara FastAPI los parámetros: no es el error de B008.
+extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Header"]
 
 [build-system]
 requires = ["hatchling"]

@@ -43,25 +43,26 @@ Bloquea la compra de la electrónica. Ir con el electricista, un celular y cron�
 - [ ] Criterio de aceptación: **con la Pi apagada y sin red**, fotocelda y finales de
       carrera siguen deteniendo el motor
 
-## 3. Raspberry Pi (F5) — en desarrollo en la laptop
+## 3. Raspberry Pi (F5) — software listo y probado en la laptop
 
-Cinco servicios systemd independientes + Mosquitto local. Se desarrolla en la laptop
-con simuladores y se pasa a la Pi en la parte 8. Detalle en `edge/README.md`.
+Cinco servicios systemd independientes + Mosquitto con ACL. Todo probado en la laptop
+con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
 
-- [x] **Parte 0 — Base común**: configuración, mensajes validados, bus MQTT con
-      reconexión y Last Will, logs JSON, watchdog de systemd, GPIO intercambiable
-- [x] **Parte 1 — Cámara**: cliente Sony con parser del formato real, simulador y sonda
+- [x] Parte 0 — Base común: configuración estricta, bus validado, watchdog, GPIO intercambiable
+- [x] Parte 1 — Cámara: cliente Sony con parser del formato real, simulador y sonda
+- [x] Parte 2 — `anpr-capture`: liveview persistente, ráfaga espaciada, spool atómico
+- [x] Parte 3 — `anpr-uplink`: plazo para abrir, reintentos, reenvío tardío (`late` en la API)
+- [x] Parte 4 — `anpr-trigger`: antirrebote, reintento si ilegible, cola de autos
+- [x] Parte 5 — `anpr-gate`: máquina de estados, `safe-off` al morir
+- [x] Parte 6 — `anpr-health` y simuladores de la pluma y de la nube
+- [x] Parte 7 — Unidades systemd endurecidas, ACL de Mosquitto verificada, instalador
 - [ ] **Correr la sonda con la Sony real** (lo hace el usuario: la laptop se queda sin
-      internet mientras está en el Wi-Fi de la cámara) y guardar la grabación
-- [ ] Instalar Mosquitto en la laptop: `sudo apt install mosquitto mosquitto-clients`
-- [ ] Parte 2 — `anpr-capture`: sesión de liveview persistente, ráfaga al spool
-- [ ] Parte 3 — `anpr-uplink`: POST a la nube, reintentos con plazo, campo `late` en la API
-- [ ] Parte 4 — `anpr-trigger`: sensor de presencia, reintento si la placa fue ilegible
-- [ ] Parte 5 — `anpr-gate`: máquina de estados de la pluma (crítico de seguridad)
-- [ ] Parte 6 — `anpr-health`: chequeos, LED y simulador de la pluma
-- [ ] Parte 7 — Unidades systemd, ACL de Mosquitto, instalación y pruebas de fallos
+      internet mientras está en el Wi-Fi de la cámara) y revisar `capturas/probe.json`
+- [ ] Probar `anpr-dev --camera real` con la Sony y `--cloud config` contra la API desplegada
 - [ ] Parte 8 — En la Pi: comprar (Pi 5 4 GB, fuente 27 W, disipador, NVMe + HAT, pila
-      RTC, UPS), dos redes, watchdog de hardware y hito I3 (LED, sin motor)
+      RTC, UPS), Raspberry Pi OS 64-bit, `deploy/install.sh`, dos redes, watchdog de
+      hardware y **hito I3** (auto → nube → LED, sin motor)
+- [ ] Con F6: confirmar pines BCM, `open_relay` y tiempos de recorrido en `edge.toml`
 - [ ] Latido de la Pi a la nube (endpoint y tabla en la API; fuera de esta etapa)
 
 ## 4. Modelo de IA (F4)

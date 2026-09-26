@@ -1,0 +1,47 @@
+# Generado para el edge ANPR (F5). Instalar con edge/deploy/install.sh.
+[Unit]
+Description=ANPR: control de la pluma (único que acciona los relés)
+After=mosquitto.service
+Wants=mosquitto.service
+# Nunca dejar de reintentar: un servicio de campo no puede quedarse abajo.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+ExecStart=/opt/anpr-edge/venv/bin/anpr-gate
+# Si el proceso termina por cualquier motivo (incluido kill -9), apagar los relés.
+ExecStopPost=/opt/anpr-edge/venv/bin/anpr-gate-safe-off
+WatchdogSec=5
+SupplementaryGroups=gpio
+# lgpio crea archivos de notificación en el directorio de trabajo; / es de solo lectura.
+RuntimeDirectory=anpr-gate
+WorkingDirectory=/run/anpr-gate
+Environment=LG_WD=/run/anpr-gate
+# Sin internet: solo el broker local. Lo impone el sistema, no el código.
+IPAddressDeny=any
+IPAddressAllow=localhost
+Nice=-5
+MemoryMax=256M
+Restart=always
+RestartSec=1
+User=anpr-gate
+Group=anpr
+Environment=ANPR_EDGE_CONFIG=/etc/anpr/edge.toml
+Environment=PYTHONUNBUFFERED=1
+LoadCredential=mqtt_password:/etc/anpr/mqtt/gate.pw
+# Endurecimiento: sin privilegios, sistema de archivos de solo lectura salvo lo indicado.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0007
+
+[Install]
+WantedBy=multi-user.target

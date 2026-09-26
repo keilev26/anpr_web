@@ -148,3 +148,24 @@ async def test_fechas_se_serializan_en_utc_con_z(client, admin_headers, reader_d
 
     usuarios = (await client.get("/users", headers=admin_headers)).json()["items"]
     assert usuarios[0]["created_at"].endswith("Z"), usuarios[0]["created_at"]
+
+
+async def test_reenvio_tardio_se_registra_como_no_abierto(client, reader_devuelve, admin_headers):
+    """
+    La Pi no obtuvo respuesta a tiempo y NO abrió; reenvía después solo para registro.
+    Aunque la placa esté autorizada, el evento no debe figurar como portón abierto.
+    """
+    reader_devuelve("CUB-604")
+    form = _form() | {"late": "true"}
+    r = await client.post("/v1/detections", headers=DEVICE, data=form, files=_frames(3))
+    assert r.status_code == 200 and r.json()["authorized"] is True
+    events = (await client.get("/events", headers=admin_headers)).json()
+    ev = next(e for e in events["items"] if e["plate"] == "CUB-604")
+    assert ev["authorized"] is True and ev["gate_opened"] is False
+
+
+async def test_sin_late_la_placa_autorizada_figura_abierta(client, reader_devuelve, admin_headers):
+    reader_devuelve("CUB-604")
+    await client.post("/v1/detections", headers=DEVICE, data=_form(), files=_frames(3))
+    events = (await client.get("/events", headers=admin_headers)).json()
+    assert next(e for e in events["items"] if e["plate"] == "CUB-604")["gate_opened"] is True
