@@ -5,12 +5,29 @@ para telemetría y salud (`anpr-health`).
 
 ```
 gate/trigger       {"event_id", "source": "loop"|"manual", "ts"}
-gate/frames_ready  {"event_id", "path", "count"}
+gate/frames_ready  {"event_id", "path", "count", "captured_at"}
 gate/command       {"event_id", "action": "open", "ttl_s", "issued_at"}
-gate/state         {"state": "closed"|"opening"|"open"|"closing"|"fault",
-                    "position_known": bool}
+gate/state         {"state": "unknown"|"homing"|"closed"|"opening"|"open"|"closing"
+                             |"fault"|"manual", "position_known": bool, "ts"}   retenido
 gate/fault         {"code", "detail", "ts"}
+gate/verdict       {"event_id", "outcome": "open"|"deny"|"unreadable"|"rejected"
+                             |"unavailable"|"late", "plate", "http_status", "latency_ms", "ts"}
+svc/<servicio>/status  {"service", "status": "online"|"offline"}      retenido + Last Will
 ```
+
+Implementación: `edge/src/anpr_edge/common/messages.py` (un modelo pydantic por tópico).
+
+## Reglas del bus
+
+- **Todo mensaje se valida** al recibirlo: campos desconocidos, tipos erróneos o fechas
+  sin zona horaria se descartan y se registran. Nunca llegan a la lógica.
+- **QoS 1 y sesión limpia**: tras una reconexión no se reciben mensajes viejos. Un
+  disparo o una orden atrasados no deben ejecutarse; quien espera respuesta usa su plazo.
+- **`gate/command` nunca se retiene**; `gate/state` y `svc/*/status` sí, para que quien
+  se conecte conozca el estado actual.
+- **Last Will**: si un servicio muere, el broker publica `offline` en su nombre.
+- **`sim/gpio/in/<SEÑAL>` y `sim/gpio/out/<SEÑAL>`**: solo en la laptop, para el GPIO
+  simulado. En la Pi la ACL de Mosquitto los deniega.
 
 ## Quién publica y quién escucha
 
@@ -21,6 +38,8 @@ gate/fault         {"code", "detail", "ts"}
 | `gate/command` | `anpr-uplink` | `anpr-gate` |
 | `gate/state` | `anpr-gate` | `anpr-health`, `anpr-uplink` |
 | `gate/fault` | cualquiera | `anpr-health` |
+| `gate/verdict` | `anpr-uplink` | `anpr-trigger` (reintento si ilegible), `anpr-health` |
+| `svc/<servicio>/status` | cada servicio (y el broker, como Last Will) | `anpr-health` |
 
 **`anpr-gate` es el único suscriptor de `gate/command` y el único que toca GPIO.**
 No tiene acceso a internet. Recibe órdenes del bus local y las valida contra su

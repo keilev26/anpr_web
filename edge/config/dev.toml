@@ -1,0 +1,18 @@
+# Laptop: Sony simulada, GPIO simulado por MQTT y spool en /tmp.
+#   ANPR_EDGE_CONFIG=config/dev.toml
+# Para la Sony real: rpc_url = "http://192.168.122.1:10000/sony/camera"
+
+[camera]
+rpc_url = "http://127.0.0.1:10000/sony/camera"
+
+[capture]
+spool_dir = "/tmp/anpr-spool"
+
+[uplink]
+# API local (cd api && uvicorn app.main:app --port 8000). Para la desplegada:
+# api_url = "https://d22z1x91kqav4d.cloudfront.net/api"
+api_url = "http://127.0.0.1:8000"
+device_key_file = "/data/anpr/secrets/device_api_key"
+
+[gpio]
+backend = "sim"

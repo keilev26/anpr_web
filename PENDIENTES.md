@@ -43,16 +43,26 @@ Bloquea la compra de la electrónica. Ir con el electricista, un celular y cron�
 - [ ] Criterio de aceptación: **con la Pi apagada y sin red**, fotocelda y finales de
       carrera siguen deteniendo el motor
 
-## 3. Raspberry Pi (F5) — sin empezar
+## 3. Raspberry Pi (F5) — en desarrollo en la laptop
 
-- [ ] Comprar Pi 5 4 GB, fuente oficial 27 W, disipador activo, SSD NVMe + HAT, pila RTC, UPS
-- [ ] Red: Wi-Fi a la Sony + Ethernet a internet, con la ruta por defecto por Ethernet
-- [ ] Servicios: presencia → ráfaga (≥3 fotos) → `POST /api/v1/detections` → relés
-- [ ] Cierre automático de la pluma cuando la fotocelda se interrumpe y se libera
-      (`contracts/gpio-map.md`); nunca cerrar con la fotocelda interrumpida
-- [ ] Cerrar la fuga de sesiones de la Sony (`startLiveview` sin `stopLiveview`)
-- [ ] Watchdog de hardware y sistema resistente a cortes de luz
-- [ ] Hito I3: ráfaga → nube → veredicto → **LED**, sin motor
+Cinco servicios systemd independientes + Mosquitto local. Se desarrolla en la laptop
+con simuladores y se pasa a la Pi en la parte 8. Detalle en `edge/README.md`.
+
+- [x] **Parte 0 — Base común**: configuración, mensajes validados, bus MQTT con
+      reconexión y Last Will, logs JSON, watchdog de systemd, GPIO intercambiable
+- [x] **Parte 1 — Cámara**: cliente Sony con parser del formato real, simulador y sonda
+- [ ] **Correr la sonda con la Sony real** (lo hace el usuario: la laptop se queda sin
+      internet mientras está en el Wi-Fi de la cámara) y guardar la grabación
+- [ ] Instalar Mosquitto en la laptop: `sudo apt install mosquitto mosquitto-clients`
+- [ ] Parte 2 — `anpr-capture`: sesión de liveview persistente, ráfaga al spool
+- [ ] Parte 3 — `anpr-uplink`: POST a la nube, reintentos con plazo, campo `late` en la API
+- [ ] Parte 4 — `anpr-trigger`: sensor de presencia, reintento si la placa fue ilegible
+- [ ] Parte 5 — `anpr-gate`: máquina de estados de la pluma (crítico de seguridad)
+- [ ] Parte 6 — `anpr-health`: chequeos, LED y simulador de la pluma
+- [ ] Parte 7 — Unidades systemd, ACL de Mosquitto, instalación y pruebas de fallos
+- [ ] Parte 8 — En la Pi: comprar (Pi 5 4 GB, fuente 27 W, disipador, NVMe + HAT, pila
+      RTC, UPS), dos redes, watchdog de hardware y hito I3 (LED, sin motor)
+- [ ] Latido de la Pi a la nube (endpoint y tabla en la API; fuera de esta etapa)
 
 ## 4. Modelo de IA (F4)
 

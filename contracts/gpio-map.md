@@ -11,6 +11,7 @@
 | `ESTOP_OK` | IN | **NC**, pull-up | Bajo = no hay emergencia |
 | `PRESENCE` | IN | Pull-up | Sensor de disparo |
 | `MANUAL_BTN` | IN | Pull-up | Contingencia sin red |
+| `MODE_AUTO` | IN | Pull-up | Selector MANUAL/AUTO. Bajo = AUTO; cortado = manual (la Pi no acciona) |
 
 > Números de pin BCM: **pendientes**, se fijan al cerrar el diseño del gabinete (F6).
 

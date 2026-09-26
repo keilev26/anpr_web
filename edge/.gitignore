@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+# Grabaciones de la cámara real: pueden mostrar placas y personas.
+capturas/

@@ -17,6 +17,48 @@ inferencia en la nube, la Pi solo captura, hace un POST y cierra relés).
 mantiene pequeño, auditable y **sin ninguna dependencia de red**. Un bug en
 `anpr-uplink` no puede mover el motor de forma inválida.
 
+## Desarrollo en la laptop
+
+El ~90 % se desarrolla y prueba en la laptop: Linux, Python, systemd, Mosquitto y el
+protocolo de la Sony son los mismos. Lo que cambia entre máquinas va en la
+configuración (`/etc/anpr/edge.toml`; en la laptop, `config/dev.toml`), nunca en el
+código. El GPIO se simula (backend `sim`); dos redes, watchdog, RTC y NVMe se
+configuran ya en la Pi. Plan por partes: `PENDIENTES.md` §3.
+
+```bash
+cd edge
+UV_CACHE_DIR=/data/cache/uv uv sync --python /usr/bin/python3.12 --extra dev --extra sim
+PYTHONPATH= .venv/bin/pytest          # PYTHONPATH vacío: ROS inyecta plugins de pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
+```
+
+Dependencias fijadas con hash en `uv.lock` y auditadas con `pip-audit`.
+
+### Cámara Sony
+
+La cámara crea su propia red Wi-Fi (`DIRECT-...:HDR-AS100V`) y solo se controla desde
+ella, en `192.168.122.1`: no puede unirse al router. Cliente en
+`src/anpr_edge/camera/sony.py`: parsea el formato de paquetes del liveview (no busca
+marcadores JPEG como el legacy) y siempre cierra con `stopLiveview`.
+
+**Sonda de la cámara real.** Conectar la laptop al Wi-Fi de la Sony. Se pierde internet
+mientras tanto, así que conviene correrla en otra terminal y volver luego a la red de siempre:
+
+```bash
+.venv/bin/anpr-probe-camera --record capturas/liveview.bin --save-frames 10 \
+    > capturas/probe.json
+```
+
+Mide el arranque del liveview, FPS, resolución y tamaño de los frames, y comprueba en
+3 ciclos que no se agotan las sesiones. `capturas/` está ignorada por git: puede haber
+placas y personas.
+
+**Sony simulada** (mismo protocolo, con fallos inyectables):
+
+```bash
+.venv/bin/anpr-sim-camera --frames-dir tests/fixtures/frames   # o --replay capturas/liveview.bin
+```
+
 ## No incluye
 
 - El cableado de potencia ni los sensores (F6)
