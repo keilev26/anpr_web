@@ -23,8 +23,10 @@ Bloquea la compra de la electrónica. Ir con el electricista, un celular y cron�
       ver `hardware/README.md` dato 2
 - [ ] **Foto del interior de la caja de mando** (energía cortada): cables del selector
       FWD / STOP / REV hacia `FWD`, `REV` y `0V`
-- [x] **Capacidad del controlador** (2026-10-07): 400 W, máx. 3 A, 220-240V AC —
-      falta la placa del motor en sí para confirmar que coincide
+- [x] **Capacidad del controlador** (2026-10-07): 400 W, máx. 3 A, 220-240V AC.
+      No se consiguió la placa del motor en sí, pero ya no bloquea: el "MAX.AMP 3A"
+      del UX-52 sirve como techo seguro para dimensionar relé/contactor/protección
+      (el motor no debería pedir más de lo que el controlador soporta)
 - [ ] **Tiempo de recorrido**: subir y bajar, 3 veces cada uno, en video. Anotar la
       posición de la perilla de velocidad
 - [ ] ¿El selector **vuelve solo a STOP** al soltarlo, o se queda en su posición?
