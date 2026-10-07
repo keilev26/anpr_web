@@ -39,7 +39,10 @@ REPO="$("$TF" output -raw ecr_repository_url)"
 REGION="$(echo "$REPO" | cut -d. -f4)"
 
 echo "==> docker build $REPO:$TAG (linux/amd64)"
-docker build --platform linux/amd64 -t "$REPO:$TAG" "$ML"
+# --provenance=false --sbom=false: Docker moderno (buildx) agrega por defecto un
+# índice de manifiestos con atestaciones de procedencia/SBOM; Lambda solo acepta
+# un manifiesto plano y rechaza ese formato ("image manifest ... not supported").
+docker build --platform linux/amd64 --provenance=false --sbom=false -t "$REPO:$TAG" "$ML"
 
 if [[ "${SKIP_PUSH:-0}" == "1" ]]; then
   echo

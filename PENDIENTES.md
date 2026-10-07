@@ -99,12 +99,31 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
 
 ## 5. Nube (F3)
 
-- [ ] **Subir el modelo**: mover Docker a `/data` (sudo), construir y probar la imagen de
-      inferencia, subirla a ECR, `infer_image_tag` y `terraform apply` (`infra/README.md` paso 5)
-- [ ] Probar el camino crítico completo (paso 6)
-- [ ] **Recrear la suscripción de alarmas** (`terraform apply`) y confirmar el correo
-      antes de 3 días: la primera expiró sin confirmar
-- [ ] Opcional: ping cada 5 min con EventBridge para evitar el arranque en frío (~5 s)
+- [x] **Modelo subido y camino crítico probado end-to-end en producción** (2026-10-07):
+      Docker movido a `/data`, imagen construida, subida a ECR y desplegada
+      (`anpr-prueba-infer`). `POST /v1/detections` contra la API real ya lee la
+      placa de verdad (no el simulador): probado con `T4Y-427`, `authorized:false`
+      correcto. Tres bugs reales de AWS encontrados y corregidos (detalle en
+      `ml/Dockerfile` y `infra/scripts/push_infer_image.sh`):
+      1. Falta `libgomp` en la imagen base de Lambda (lo necesita `libpaddle.so`)
+      2. `paddlex` exige el paquete `opencv-contrib-python` **por nombre exacto**;
+         cambiarlo por la variante headless (para evitar `libGL`) rompe esa
+         validación aunque `cv2` funcione. Se revirtió: paquete normal +
+         `mesa-libGL libXext libSM libXrender glib2` por `dnf`
+      3. Docker moderno agrega por defecto un índice de manifiestos con
+         atestaciones de procedencia/SBOM que Lambda rechaza
+         ("image manifest ... not supported"): build con `--provenance=false --sbom=false`
+      4. La cuenta tiene un tope de **3008 MB** por función (no 10240); sin cuota
+         que pedir, es límite de cuenta nueva. Ajustado en `lambda.tf`
+- [x] Recreada la suscripción de alarmas (quedó pendiente confirmar el correo)
+- [ ] **Arranque en frío real: ~10 s en caliente, más en frío — muy por encima del
+      presupuesto de 4 s.** El "ping cada 5 min" con EventBridge pasa de opcional a
+      **necesario**: sin él, cualquier auto tras un rato de inactividad no abriría a
+      tiempo (el Pi no abre si no llega veredicto en el plazo)
+- [ ] Investigar por qué: ~1,2 s en caliente en local (misma imagen) vs ~10 s en
+      caliente en Lambda real — CPU mucho más limitada (3008 MB ≈ 1,7 vCPU) explica
+      parte, pero conviene medirlo con más detalle antes de confiar en el presupuesto
+- [ ] Confirmar el correo de la suscripción de alarmas antes de 3 días
 - [ ] Respaldar el estado tras cada apply (`infra/scripts/backup_tfstate.sh`)
 - [ ] Al terminar la prueba: desactivar la clave de acceso de `anpr-terraform`
 - [x] Cuota de Lambda 10 → 1000 (aprobada)

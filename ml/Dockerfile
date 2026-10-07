@@ -10,15 +10,23 @@
 # Interface Emulator antes de desplegar (tarea de F3).
 FROM public.ecr.aws/lambda/python:3.12
 
+# Librerías de sistema que la imagen base de Lambda (Amazon Linux 2023) no trae,
+# reproducido con el emulador de Lambda:
+# - libgomp: libpaddle.so (compilado en C++) la necesita (OpenMP). Sin ella falla
+#   al importar paddle con "libgomp.so.1: cannot open shared object file".
+# - mesa-libGL, libXext, libSM, libXrender, glib2: las pide `opencv-contrib-python`
+#   (la variante con interfaz gráfica que trae `paddleocr`). Se probó cambiarla
+#   por la headless para no instalar esto, pero `paddlex` exige en tiempo de
+#   ejecución el paquete `opencv-contrib-python` **por su nombre exacto**
+#   (`paddlex.utils.deps.require_extra`); con la headless falla con
+#   "A dependency error occurred during pipeline creation" aunque `cv2` funcione
+#   igual. Más simple instalar estas 5 librerías que pelear con esa validación.
+RUN dnf install -y libgomp mesa-libGL libXext libSM libXrender glib2 && dnf clean all
+
 RUN pip install --no-cache-dir \
       paddlepaddle==3.3.1 \
       paddleocr==3.7.0 \
-      onnxruntime==1.30.0 \
- # paddleocr arrastra opencv-contrib-python, la variante con interfaz gráfica,
- # que necesita libGL. Se sustituye por la headless de la MISMA versión: dos
- # paquetes que proveen `cv2` en el mismo entorno se pisan.
- && pip uninstall -y opencv-contrib-python \
- && pip install --no-cache-dir opencv-contrib-python-headless==4.10.0.84
+      onnxruntime==1.30.0
 
 COPY src/anpr_ml ${LAMBDA_TASK_ROOT}/anpr_ml
 
@@ -29,6 +37,26 @@ COPY src/anpr_ml ${LAMBDA_TASK_ROOT}/anpr_ml
 #                            los dos de anpr_ml/ocr_settings.py
 COPY models/best.onnx ${LAMBDA_TASK_ROOT}/models/
 COPY models/paddle ${LAMBDA_TASK_ROOT}/models/paddle
+
+# Sin esto, Paddle ve los CPUs del servidor físico completo (no los que le
+# tocan en el sandbox de Lambda) y lanza demasiados hilos: se cuelga sin error
+# ni consumir memoria (reproducido en AWS: 60 s de "Status: timeout" con solo
+# 463 MB usados, sin siquiera terminar de cargar el modelo). Problema conocido
+# de OpenBLAS/OpenMP en contenedores con cuota de CPU, no con CPUs fijos.
+ENV OMP_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    # Paddle no siempre respeta OMP_NUM_THREADS para su propia librería
+    # matemática interna (MKL/OpenBLAS compilados dentro de libpaddle.so):
+    # tiene su propia bandera, por convención FLAGS_*.
+    FLAGS_cpu_math_library_num_threads=1 \
+    # Bug conocido de Paddle: su asignador de memoria por defecto ("auto_growth")
+    # puede quedarse esperando indefinidamente bajo ciertas restricciones del
+    # sistema (documentado para GPU; se prueba aquí porque el síntoma es
+    # idéntico: colgado sin error, memoria reportada baja y estable). La
+    # estrategia simple no tiene ese bucle.
+    FLAGS_allocator_strategy=naive_best_fit
 
 ENV MODEL_PATH=${LAMBDA_TASK_ROOT}/models/best.onnx \
     # Rutas locales: PaddleOCR no pasa por la descarga de modelos oficiales.

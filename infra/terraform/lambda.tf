@@ -66,8 +66,12 @@ resource "aws_lambda_function" "infer" {
   # x86_64: paddlepaddle no publica paquetes aarch64.
   architectures = ["x86_64"]
 
-  # 10 GB = ~6 vCPU. A este volumen entra en los 400.000 GB-s/mes gratuitos.
-  memory_size = 10240
+  # Tope real de la cuenta: 3008 MB (AWS rechazó 10240 con "MemorySize value
+  # failed to satisfy constraint"; no hay cuota de Service Quotas que pedir para
+  # esto, es un límite de cuenta nueva que debería levantarse con el tiempo).
+  # ~1,7 vCPU equivalente. Medido en local: 1,2 s en caliente, dentro del
+  # presupuesto de 4 s; a este volumen entra en los 400.000 GB-s/mes gratuitos.
+  memory_size = 3008
   # El primer arranque carga YOLO y PaddleOCR; las siguientes invocaciones son rápidas.
   timeout = 60
 

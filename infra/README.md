@@ -149,6 +149,23 @@ responde con el stub (sin placa) hasta el paso 5.
    ```
 4. `infer_image_tag = "v1"` en `terraform.tfvars` y `terraform apply`.
 
+**Tres problemas reales que solo aparecen en AWS, no en el emulador local (2026-10-07):**
+el `Dockerfile` ya los deja corregidos, aquí solo el motivo.
+
+| Problema | Por qué pasó | Arreglo |
+|---|---|---|
+| `ImportError: libgomp.so.1` | `libpaddle.so` (C++) necesita OpenMP; la imagen base de Lambda no lo trae | `dnf install libgomp ...` |
+| `DependencyError` al crear el pipeline de OCR | `paddlex` exige el paquete **`opencv-contrib-python` por nombre exacto**. Cambiarlo por la variante `headless` (para no instalar `libGL`) rompe esa validación aunque `cv2` siga funcionando | Dejar el paquete normal + `mesa-libGL libXext libSM libXrender glib2` por `dnf` |
+| `InvalidParameterValueException: image manifest ... is not supported` al crear el Lambda | Docker moderno agrega por defecto un índice de manifiestos con atestaciones de procedencia/SBOM; Lambda solo acepta un manifiesto plano | `docker build --provenance=false --sbom=false` |
+| `MemorySize value failed to satisfy constraint: ... <= 3008` | La cuenta tiene un tope de **3008 MB** por función, no 10240. Sin cuota que pedir en Service Quotas: es límite de cuenta nueva | `memory_size = 3008` en `lambda.tf` |
+
+**El arranque en frío real es lento: ~10 s en caliente, más en frío.** La primera
+prueba contra AWS real se quedaba en `Status: timeout` a los 60 s exactos, en todos
+los intentos — parecía un cuelgue. Subir el timeout a 180 s para diagnosticar (sin
+reconstruir nada) reveló que **sí terminaba, en 55 s**: no era un cuelgue, solo
+necesitaba más margen que el límite original. El timeout quedó de vuelta en 60 s;
+el verdadero arreglo es el ping de calentamiento (ver "Estado").
+
 ### 6. Probar el camino crítico
 
 ```bash
@@ -160,9 +177,13 @@ curl -s -X POST "$URL" -H "X-Device-Key: $KEY" \
   -F frames=@foto.jpg -F frames=@foto.jpg -F frames=@foto.jpg
 ```
 
-La primera petición tarda 10-20 s más por el arranque en frío (en la prueba no hay
-ping de calentamiento). Tres fotogramas porque el consenso exige al menos dos
-lecturas iguales.
+Tres fotogramas porque el consenso exige al menos dos lecturas iguales.
+
+**Probado contra la API real desplegada (2026-10-07):** `200`, placa leída
+correctamente (`T4Y-427`), `authorized:false` (correcto, esa placa no está en la
+lista). **`latency_ms: 10082`** con el contenedor ya tibio — muy por encima del
+presupuesto de 4 s del camino crítico. En frío es más. Confirma que el ping de
+calentamiento (abajo) deja de ser opcional.
 
 ## Borrar todo
 
@@ -220,7 +241,13 @@ Desplegado el 2026-09-16 en la cuenta de prueba: **https://d22z1x91kqav4d.cloudf
 - [x] Correcciones de la revisión aplicadas (2026-09-16): bloqueo de login, docs ocultas,
       cabeceras de seguridad, pool de conexiones (~0,55 s en caliente, antes ~1 s),
       alarmas, IPv6 y respaldo del estado
-- [ ] Recrear la suscripción SNS (`terraform apply`) y confirmarla antes de 3 días
+- [x] Recreada la suscripción SNS — falta confirmar el correo antes de 3 días
 - [x] Cuota de concurrencia de Lambda: 10 → 1000, aprobada
-- [ ] Mover Docker a `/data`, exportar ONNX y construir la imagen de inferencia (paso 5)
-- [ ] Probar el camino crítico de punta a punta (paso 6)
+- [x] **Modelo subido y camino crítico probado de punta a punta en producción**
+      (2026-10-07, pasos 5 y 6): la API real ya lee placas de verdad, no el
+      simulador. Cuatro problemas de AWS encontrados y corregidos (tabla arriba)
+- [ ] **Ping de calentamiento (EventBridge, cada 5 min) para el Lambda de
+      inferencia**: pasa de opcional a necesario — en caliente ya tarda 10 s,
+      muy por encima de los 4 s del presupuesto; en frío sería peor
+- [ ] Investigar la diferencia de latencia: ~1,2 s en caliente en local (misma
+      imagen) vs ~10 s en caliente en AWS real
