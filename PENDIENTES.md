@@ -123,6 +123,17 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
 - [ ] Investigar por qué: ~1,2 s en caliente en local (misma imagen) vs ~10 s en
       caliente en Lambda real — CPU mucho más limitada (3008 MB ≈ 1,7 vCPU) explica
       parte, pero conviene medirlo con más detalle antes de confiar en el presupuesto
+- [ ] **Mejora de pago, cuando haya presupuesto: subir `memory_size` de 3008 a 10240
+      en `infra/terraform/lambda.tf` (línea marcada "TOPE DE CUENTA, NO DE DISEÑO").**
+      Hoy no se puede: AWS lo rechaza por el tope de 3008 MB de esta cuenta nueva
+      (sin cuota que pedir; se espera que suba sola con el tiempo o al pasar a una
+      cuenta de pago). Importa porque **Lambda reparte CPU en proporción a la
+      memoria configurada, no a la usada**: a 3008 MB tocan ~1,7 vCPU, a 10240 MB
+      tocarían ~5,8 vCPU. La memoria en sí no es el cuello de botella — medido el
+      2026-10-07, el pico real de uso es 1420-1426 MB de 3008 (47%) — es la CPU, y
+      es probablemente la causa principal de los ~9-10 s de latencia en caliente.
+      Subir esto a 10240 es la mejora de latencia más directa y barata que hay
+      cuando se pueda
 - [ ] Confirmar el correo de la suscripción de alarmas antes de 3 días
 - [ ] Respaldar el estado tras cada apply (`infra/scripts/backup_tfstate.sh`)
 - [ ] Al terminar la prueba: desactivar la clave de acceso de `anpr-terraform`

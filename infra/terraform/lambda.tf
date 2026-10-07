@@ -66,11 +66,16 @@ resource "aws_lambda_function" "infer" {
   # x86_64: paddlepaddle no publica paquetes aarch64.
   architectures = ["x86_64"]
 
-  # Tope real de la cuenta: 3008 MB (AWS rechazó 10240 con "MemorySize value
-  # failed to satisfy constraint"; no hay cuota de Service Quotas que pedir para
-  # esto, es un límite de cuenta nueva que debería levantarse con el tiempo).
-  # ~1,7 vCPU equivalente. Medido en local: 1,2 s en caliente, dentro del
-  # presupuesto de 4 s; a este volumen entra en los 400.000 GB-s/mes gratuitos.
+  # TOPE DE CUENTA, NO DE DISEÑO: 3008 MB (AWS rechazó 10240 con "MemorySize
+  # value failed to satisfy constraint"; no hay cuota de Service Quotas que
+  # pedir, es límite de cuenta nueva que debería levantarse con el tiempo o al
+  # pasar a una cuenta de pago). Lambda reparte CPU en proporción a esta cifra,
+  # no al uso real: a 3008 MB tocan ~1,7 vCPU; a 10240 MB tocarían ~5,8 vCPU,
+  # más de 3 veces más. La memoria en sí SOBRA (medido en AWS, 2026-10-07: pico
+  # de 1420-1426 MB de 3008, un 47%): el límite no restringe memoria, restringe
+  # CPU, y eso es lo que explica que la detección tarde ~9-10 s en caliente en
+  # AWS frente a ~1,2 s en una laptop con más núcleos. SUBIR ESTO A 10240 EN
+  # CUANTO LA CUENTA LO PERMITA: es la mejora de latencia más directa que hay.
   memory_size = 3008
   # El primer arranque carga YOLO y PaddleOCR; las siguientes invocaciones son rápidas.
   timeout = 60
