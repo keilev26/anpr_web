@@ -19,10 +19,12 @@ Detalle técnico de cada frente en su propio `README.md`.
 Bloquea la compra de la electrónica. Ir con el electricista, un celular y cronómetro.
 
 - [ ] **Foto de la etiqueta** del UX-52 (marca, modelo, datos eléctricos)
-- [ ] **Foto de la bornera** del UX-52, con la serigrafía legible
+- [x] **Foto de la bornera** del UX-52 (2026-10-07): `0V`/`FWD`/`REV` identificados,
+      ver `hardware/README.md` dato 2
 - [ ] **Foto del interior de la caja de mando** (energía cortada): cables del selector
       FWD / STOP / REV hacia `FWD`, `REV` y `0V`
-- [ ] **Placa del motor**: potencia (W), voltaje y corriente
+- [x] **Capacidad del controlador** (2026-10-07): 400 W, máx. 3 A, 220-240V AC —
+      falta la placa del motor en sí para confirmar que coincide
 - [ ] **Tiempo de recorrido**: subir y bajar, 3 veces cada uno, en video. Anotar la
       posición de la perilla de velocidad
 - [ ] ¿El selector **vuelve solo a STOP** al soltarlo, o se queda en su posición?

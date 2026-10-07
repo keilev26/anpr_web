@@ -99,8 +99,24 @@ soltar la perilla a tiempo; con esto el portón se detiene solo en el tope.
    FWD / STOP / REV de la caja de mando, junto a la perilla de velocidad, sin recablear
    el motor. Los relés de la Pi unirán `FWD`-`0V` o `REV`-`0V` y la perilla queda fija.
    Ver "Convivencia con el mando manual".
-2. **Foto de la bornera del UX-52 instalado** — la serigrafía varía entre clones
-3. **Potencia y tipo del motor** (W; monofásico con condensador de arranque)
+2. ~~Foto de la bornera del UX-52 instalado~~ **Resuelto (2026-10-07):** 9 bornes,
+   etiquetados en chino y español, de izquierda a derecha:
+   `AC-L` `AC-N` — alimentación 220 V (ya conectados: negro y rojo)
+   `黑(Black)` `红(Red)` — devanado + condensador (ya conectados)
+   `白(White)` — entrada "S", tacómetro de velocidad (ya conectado)
+   `滅(Blue)` ×2 — más conexiones del devanado/condensador (ya conectados)
+   **`0V` `FWD`(正转) `REV`(反转) — control de dirección, SIN NADA CONECTADO
+   todavía.** Ahí van los dos relés de la Pi: uno entre `0V`-`FWD`, otro entre
+   `0V`-`REV`. El propio diagrama impreso en la caja ya dibuja `K1`/`K2` como
+   dos interruptores simples ahí — confirma el diseño planeado, no uno nuevo.
+   El selector FWD/STOP/REV de la caja de mando (dato 1) se conecta aparte, a
+   estos mismos tres bornes: el selector **MANUAL/AUTO** (ver más abajo) debe
+   elegir entre ese selector y los relés de la Pi, nunca los dos a la vez.
+3. ~~Potencia y tipo del motor~~ **Resuelto a medias (2026-10-07):** la etiqueta
+   del propio `UX-52` dice **400 W, máx. 3 A, 220-240 V AC, 50/60 Hz** — es la
+   capacidad del controlador, que debería coincidir con el motor por ser un
+   juego emparejado. Falta la placa del motor en sí para confirmarlo
+   (monofásico con condensador de arranque, a juzgar por los bornes `Black`/`Red`)
 4. **Tiempo de recorrido completo** en segundos → define el timeout de marcha
 5. ~~Tipo de portón~~ **Resuelto (2026-09-22):** **pluma** (barrera vehicular: brazo
    horizontal que gira ~90° sobre un eje lateral). Ver "Particularidades de la pluma".
