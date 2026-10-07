@@ -63,14 +63,26 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
       declarado (antes solo 4/147 frames eran válidos). Contraseña Wi-Fi de la cámara
       confirmada desde `PMHOME/INFO/WIFI_INF.TXT` y guardada fuera del repo
       (`/data/anpr/secrets/sony_camera.env`, con `edge/tools/connect_camera_wifi.sh`)
+- [x] **Parte 8 — Primer despliegue en la Pi real** (2026-10-07): Raspberry Pi 5,
+      Raspberry Pi OS Lite 64-bit (microSD por ahora; SSD NVMe pendiente), `deploy/install.sh`
+      corrido de punta a punta sin errores (usuarios por servicio, Mosquitto con ACL,
+      entorno Python con `--require-hashes`). Dos redes activas a la vez (Ethernet
+      `metric 100` como ruta por defecto, Wi-Fi de la Sony `metric 600` de respaldo —
+      `NetworkManager` lo resolvió sin ajuste manual). Los 5 servicios `active (running)`;
+      `health/summary` → `"problems": []`: cámara a ~30 fps, nube despierta, sin fallas.
+      `anpr-gate` queda en `MANUAL` sin GPIO cableado (F6 pendiente), como debe ser.
+      Corregido de paso: el instalador no mostraba el estado final si un servicio
+      fallaba al arrancar (`set -e` cortaba antes de listar los otros 4 sanos)
 - [ ] Probar `anpr-dev --camera real` con la Sony y `--cloud config` contra la API desplegada
-- [ ] Exportar `best.pt` a ONNX e instalar PaddleOCR en la laptop para detección real
-      end-to-end (placa → cámara → modelo → nube), con la API local o desplegada
-- [ ] Parte 8 — En la Pi: comprar (Pi 5 4 GB, fuente 27 W, disipador, NVMe + HAT, pila
-      RTC, UPS), Raspberry Pi OS 64-bit, `deploy/install.sh`, dos redes, watchdog de
-      hardware y **hito I3** (auto → nube → LED, sin motor)
+- [ ] Exportar `best.pt` a ONNX e instalar PaddleOCR (laptop o Pi) para detección real
+      end-to-end (placa → cámara → modelo → nube)
+- [ ] Migrar de microSD a SSD por NVMe; watchdog de hardware; RTC con pila; UPS
 - [ ] Con F6: confirmar pines BCM, `open_relay` y tiempos de recorrido en `edge.toml`
+      (hoy son una propuesta sin verificar en sitio)
+- [ ] **Hito I3**: con la inferencia real conectada, un auto hasta ráfaga → nube →
+      veredicto → LED, sin motor
 - [ ] Latido de la Pi a la nube (endpoint y tabla en la API; fuera de esta etapa)
+- [ ] Cambiar la contraseña `123456` del usuario `cedim` por una fuerte (`passwd`)
 
 ## 4. Modelo de IA (F4)
 
