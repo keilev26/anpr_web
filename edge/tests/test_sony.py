@@ -42,6 +42,19 @@ def test_parsea_frames_en_trozos_de_cualquier_tamano(jpegs):
         assert parser.resyncs == parser.corrupt == 0
 
 
+def test_tamano_declarado_incluye_datos_de_enfoque_tras_el_jpeg(jpegs):
+    """
+    Reproducido con la cámara real (2026-10-07): el tamaño declarado incluye, tras el
+    FFD9 real, datos de enfoque de longitud variable (no ceros): el parser debe cortar
+    en el verdadero final, no en el tamaño declarado.
+    """
+    focus_data = bytes(range(1, 97))  # 96 bytes no nulos, como se vio en la captura real
+    padded = jpegs[0] + focus_data
+    packet = encode_packet(0, 0, padded)  # `size` en el paquete = len(padded)
+    frames = LiveviewParser().feed(packet)
+    assert len(frames) == 1 and frames[0].jpeg == jpegs[0]
+
+
 def test_jpeg_con_miniatura_no_se_corta(jpegs):
     """El legacy cortaba en el primer FFD9, que aquí es el de la miniatura."""
     full = jpeg_with_thumbnail(jpegs[0], jpegs[1][:200] + b"\xff\xd9")

@@ -92,14 +92,29 @@ class LiveviewParser:
             if len(self._buf) < total:
                 return frames
 
-            data = bytes(self._buf[HEADER_LEN : HEADER_LEN + size])
+            region = bytes(self._buf[HEADER_LEN : HEADER_LEN + size])
             del self._buf[:total]
             if ptype != TYPE_IMAGE:
                 continue  # información de enfoque, no la usamos
-            if data[:2] == b"\xff\xd8" and data.rstrip(b"\x00")[-2:] == b"\xff\xd9":
+            data = self._extract_jpeg(region)
+            if data is not None:
                 frames.append(LiveviewFrame(seq, ts, data))
             else:
                 self.corrupt += 1
+
+    @staticmethod
+    def _extract_jpeg(region: bytes) -> bytes | None:
+        """
+        El tamaño declarado por la cámara real (HDR-AS100V) incluye, tras el JPEG,
+        datos de enfoque de longitud variable por foto — no son relleno de ceros, así
+        que `size` por sí solo no basta para cortar. Se busca el ÚLTIMO `FFD9` dentro
+        de la ventana declarada: si el JPEG trae una miniatura EXIF, su propio FFD9
+        queda ANTES del real y nunca es el último, así que sigue sin cortar mal con ella.
+        """
+        if region[:2] != b"\xff\xd8":
+            return None
+        end = region.rfind(b"\xff\xd9")
+        return region[: end + 2] if end != -1 else None
 
     def _resync(self) -> bool:
         """Descarta hasta el siguiente inicio de paquete plausible."""

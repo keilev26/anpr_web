@@ -98,11 +98,33 @@ Dependencias fijadas con hash en `uv.lock` y auditadas con `pip-audit`.
 
 La cámara crea su propia red Wi-Fi (`DIRECT-...:HDR-AS100V`) y solo se controla desde
 ella, en `192.168.122.1`: no puede unirse al router. El cliente
-(`src/anpr_edge/camera/sony.py`) parsea el formato de paquetes del liveview (no busca
-marcadores JPEG como el legacy) y siempre cierra con `stopLiveview`.
+(`src/anpr_edge/camera/sony.py`) parsea el formato de paquetes del liveview y siempre
+cierra con `stopLiveview`.
 
-**Sonda de la cámara real.** Conectar la laptop al Wi-Fi de la Sony. Se pierde internet
-mientras tanto: correrla en otra terminal y volver luego a la red de siempre.
+**Validado contra la cámara real (2026-10-07):** 147/147 frames de una ráfaga, JPEG
+válidos a 640×360. Se encontró y corrigió un bug real de hardware: el tamaño que
+declara cada paquete **incluye, tras el JPEG, datos de enfoque de longitud variable**
+(no ceros); el parser original confiaba en ese tamaño y cortaba mal (solo 4/147 frames
+válidos). Corregido buscando el último `FFD9` dentro de la ventana declarada —
+también sigue sin cortar mal si el JPEG trae una miniatura EXIF, cuyo `FFD9` queda
+antes y nunca es el último. Test de regresión: `tests/test_sony.py`.
+
+**Credenciales de la red de la cámara**, fuera del repo. El SSID y la contraseña
+**no se ven en la pantalla de la cámara**; se leen conectándola por USB y abriendo
+`PMHOME/INFO/WIFI_INF.TXT`.
+
+```bash
+cat > /data/anpr/secrets/sony_camera.env <<'EOF'
+SONY_WIFI_SSID="DIRECT-xxxx:HDR-AS100V"
+SONY_WIFI_PASSWORD="..."
+EOF
+chmod 600 /data/anpr/secrets/sony_camera.env
+
+edge/tools/connect_camera_wifi.sh          # conecta (sin internet mientras dure)
+edge/tools/connect_camera_wifi.sh --back   # vuelve a la red de siempre
+```
+
+**Sonda de la cámara real**, ya conectado a su Wi-Fi:
 
 ```bash
 .venv/bin/anpr-probe-camera --record capturas/liveview.bin --save-frames 10 \

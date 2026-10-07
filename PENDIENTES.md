@@ -56,9 +56,16 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
 - [x] Parte 5 — `anpr-gate`: máquina de estados, `safe-off` al morir
 - [x] Parte 6 — `anpr-health` y simuladores de la pluma y de la nube
 - [x] Parte 7 — Unidades systemd endurecidas, ACL de Mosquitto verificada, instalador
-- [ ] **Correr la sonda con la Sony real** (lo hace el usuario: la laptop se queda sin
-      internet mientras está en el Wi-Fi de la cámara) y revisar `capturas/probe.json`
+- [x] **Sonda contra la Sony real** (2026-10-07): la cámara entrega los 147/147 frames
+      de una ráfaga como JPEG válidos a 640×360. Se encontró y corrigió un bug real:
+      el tamaño que declara el paquete incluye datos de enfoque de longitud variable
+      tras el JPEG; el parser ahora corta en el verdadero `FFD9`, no en el tamaño
+      declarado (antes solo 4/147 frames eran válidos). Contraseña Wi-Fi de la cámara
+      confirmada desde `PMHOME/INFO/WIFI_INF.TXT` y guardada fuera del repo
+      (`/data/anpr/secrets/sony_camera.env`, con `edge/tools/connect_camera_wifi.sh`)
 - [ ] Probar `anpr-dev --camera real` con la Sony y `--cloud config` contra la API desplegada
+- [ ] Exportar `best.pt` a ONNX e instalar PaddleOCR en la laptop para detección real
+      end-to-end (placa → cámara → modelo → nube), con la API local o desplegada
 - [ ] Parte 8 — En la Pi: comprar (Pi 5 4 GB, fuente 27 W, disipador, NVMe + HAT, pila
       RTC, UPS), Raspberry Pi OS 64-bit, `deploy/install.sh`, dos redes, watchdog de
       hardware y **hito I3** (auto → nube → LED, sin motor)
