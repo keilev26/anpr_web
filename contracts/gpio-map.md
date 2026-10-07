@@ -24,17 +24,34 @@ el portón cierra sobre algo.
 
 ## La condición no negociable
 
-Estas entradas las lee la Pi para **decidir y reportar**. Pero E-stop, fotocelda y
-finales de carrera van **además cableados en serie con la bobina del contactor**.
+Estas entradas las lee la Pi para **decidir y reportar**. Pero además, en hardware,
+cada una corta el motor por su cuenta — **no todas en el mismo sitio**:
+
+- **`ESTOP_OK` es la única universal**: va en serie con la **bobina del contactor
+  principal**, que alimenta todo el UX-52. Corta cualquier sentido, siempre.
+- **`LIMIT_OPEN` corta solo el sentido de abrir** (en serie con el relé que activa
+  `FWD`). **`LIMIT_CLOSED` y `PHOTOCELL_OK` cortan solo el sentido de cerrar** (en
+  serie con el relé que activa `REV`).
+
+**Por qué no van los cuatro en el contactor principal, como se pensó al inicio:**
+si el final de carrera de "abierta" cortara *todo* el UX-52, la pluma quedaría
+trabada ahí — sin alimentación, tampoco podría cerrar después, porque el brazo
+sigue físicamente en esa posición. Cada final debe bloquear solo *su propio*
+sentido para que el contrario siga disponible. Igual con la fotocelda: su trabajo
+es impedir que la pluma **baje** sobre algo, no impedir que suba — bloquear abrir
+dejaría el brazo a medio camino sobre un obstáculo en vez de alejarse de él.
+Diagrama completo (con lo ya confirmado en la bornera real del UX-52):
+[`hardware/cableado_ux52.html`](https://claude.ai/artifact/KUy8W9JECVxAuHkCrrCqXq).
 
 **El software solo puede *pedir* movimiento; el hardware debe poder *negarlo*.**
 
 Así, un cuelgue de la Pi, una caída de internet o un bug en el Lambda nunca pueden
 cerrar el portón sobre una persona ni forzar el motor contra el tope.
 
-Criterio de aceptación: **con la Pi apagada y el cable de red desconectado, la
-fotocelda y los finales de carrera deben seguir deteniendo el motor.** Si no lo
-hacen, el cableado está mal y no se pone en producción.
+Criterio de aceptación: **con la Pi apagada y el cable de red desconectado**,
+pulsar la emergencia debe detener cualquier movimiento; con la pluma cerrando,
+interrumpir la fotocelda o alcanzar el final de carrera correspondiente debe
+detenerla. Si no lo hacen, el cableado está mal y no se pone en producción.
 
 ## Reglas que `anpr-gate` hace cumplir en software (además del hardware)
 

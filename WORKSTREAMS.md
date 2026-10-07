@@ -84,7 +84,7 @@ gate/fault         {"code", "detail", "ts"}
 
 **Todas las entradas de seguridad son NC (normalmente cerrado).** Un cable cortado o un sensor desconectado se lee como "no seguro" y el portón no se mueve. Al revés sería un fallo silencioso.
 
-**Recordatorio de la condición no negociable:** estas entradas las lee la Pi para *decidir y reportar*, pero E-stop, fotocelda y finales de carrera van **además cableados en serie con la bobina del contactor**. El software pide movimiento; el hardware puede negarlo aunque la Pi esté colgada.
+**Recordatorio de la condición no negociable:** estas entradas las lee la Pi para *decidir y reportar*, pero además cortan el motor en hardware — cada una en su punto: `ESTOP_OK` en la bobina del contactor principal (corta todo); la fotocelda y el final de carrera de "cerrada" solo en el relé que cierra; el de "abierta", solo en el que abre (detalle y por qué: `contracts/gpio-map.md`). El software pide movimiento; el hardware puede negarlo aunque la Pi esté colgada.
 
 ### Contrato D — Base de datos
 

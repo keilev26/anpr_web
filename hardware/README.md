@@ -34,14 +34,20 @@ El UX-52 **no tiene realimentación de posición** — su entrada azul es tacóm
 
 ## La regla que gobierna este frente
 
-E-stop, fotocelda y finales de carrera van **cableados en serie con la bobina del
-contactor**, no solo leídos por GPIO.
+E-stop, fotocelda y finales de carrera cortan el motor **en hardware, no solo
+leídos por GPIO** — pero no todos en el mismo punto: solo `ESTOP_OK` va en serie
+con la bobina del **contactor principal** (corta todo, cualquier sentido). La
+fotocelda y el final de carrera de "cerrada" van en serie solo con el relé que
+abre; el de "abierta", solo con el que cierra — así un final de carrera nunca deja
+el portón sin poder moverse en el sentido contrario. Detalle completo, con la
+bornera real del UX-52 ya identificada: `cableado_ux52.html`
+([diagrama](https://claude.ai/artifact/KUy8W9JECVxAuHkCrrCqXq)), `contracts/gpio-map.md`.
 
 **El software solo puede *pedir* movimiento; el hardware debe poder *negarlo*.**
 
-Criterio de aceptación: **con la Pi apagada y el cable de red desconectado, la
-fotocelda y los finales de carrera deben seguir deteniendo el motor.**
-Si no lo hacen, no se pone en producción.
+Criterio de aceptación: **con la Pi apagada y el cable de red desconectado**, la
+emergencia debe detener cualquier movimiento, y la fotocelda o el final de carrera
+correspondiente deben detener el cierre. Si no lo hacen, no se pone en producción.
 
 ## Cómo trabajar aislado
 
@@ -123,4 +129,11 @@ soltar la perilla a tiempo; con esto el portón se detiene solo en el tope.
 
 ## BOM estimado
 
-Ver `PLAN_AWS.md` §3, "Costos de hardware": ≈ $425.
+Ver `PLAN_AWS.md` §3, "Costos de hardware": ≈ $425. El diagrama de cableado
+(`cableado_ux52.html`, [enlace](https://claude.ai/artifact/KUy8W9JECVxAuHkCrrCqXq))
+precisa dos ítems que ahí estaban implícitos en "relés opto-aislados":
+
+- **Módulo de relés de 2 canales, activable a 3,3V** (no 5V — confirmar en la
+  ficha antes de comprar: es el error más común con estos módulos)
+- **Módulo optoacoplador 24V→3,3V**, una entrada por cada señal de la tabla de
+  `contracts/gpio-map.md`
