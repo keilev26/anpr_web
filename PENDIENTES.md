@@ -18,7 +18,8 @@ Detalle técnico de cada frente en su propio `README.md`.
 
 Bloquea la compra de la electrónica. Ir con el electricista, un celular y cronómetro.
 
-- [ ] **Foto de la etiqueta** del UX-52 (marca, modelo, datos eléctricos)
+- [x] **Foto de la etiqueta** del UX-52 (2026-10-07): `UX-52/003`, MCU CONTROL,
+      400W, máx. 3A, 220-240V AC, 50/60Hz
 - [x] **Foto de la bornera** del UX-52 (2026-10-07): `0V`/`FWD`/`REV` identificados,
       ver `hardware/README.md` dato 2
 - [ ] **Foto del interior de la caja de mando** (energía cortada): cables del selector
