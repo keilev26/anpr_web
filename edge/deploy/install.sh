@@ -83,7 +83,9 @@ for s in "${SERVICES[@]}"; do
 done
 systemctl daemon-reload
 for s in "${SERVICES[@]}"; do systemctl enable "anpr-$s" >/dev/null; done
-systemctl restart "${SERVICES[@]/#/anpr-}"
+# Si un servicio no arranca (p. ej. uplink sin la clave del dispositivo todavía),
+# que se muestre igual el estado de los otros 4: no abortar aquí por `set -e`.
+systemctl restart "${SERVICES[@]/#/anpr-}" || true
 
 echo "==> Estado"
 systemctl --no-pager --lines=0 status "${SERVICES[@]/#/anpr-}" | grep -E "●|Active:" || true
