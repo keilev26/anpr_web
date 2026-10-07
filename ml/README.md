@@ -262,11 +262,44 @@ fotogramas distintos** de la ráfaga. El mismo error rara vez se repite idéntic
   legible) o `sin_consenso` (lecturas dispersas).
 - `benchmark.py` usa `min_agreement=1` a propósito: evalúa un fotograma por imagen.
 
+## Un solo entorno (2026-10-07)
+
+`paddlepaddle` solo tiene paquetes hasta Python 3.12, y antes `ml/.venv` usaba 3.14
+(para `torch`/`ultralytics`), así que había dos entornos separados. **Ya no hace
+falta:** con `ml/.venv` en 3.12, `torch`/`ultralytics` (exportar/medir) y
+`paddleocr` (leer) conviven en el mismo entorno.
+
+```bash
+cd ml
+UV_CACHE_DIR=/data/cache/uv uv venv --python /usr/bin/python3.12 --clear
+uv pip install --python .venv/bin/python -e ".[train,data]"
+uv pip install --python .venv/bin/python \
+    paddlepaddle==3.3.1 paddleocr==3.7.0 onnxruntime==1.30.0 \
+    numpy opencv-python-headless   # mismas versiones que el Dockerfile
+```
+
+**`.venv/` es un enlace simbólico a `/data/anpr/venvs/ml`**, igual que
+`roboflow_images`: con `torch` instalado pesa ~7 GB, y el disco del sistema
+(`/`) no tiene margen para eso.
+
+## Pipeline de producción validado end-to-end (2026-10-07)
+
+`scripts/smoke_pipeline.py` corre el pipeline **real** de producción (igual
+código que usará el Lambda): `OnnxDetector` sobre `models/best.onnx` +
+`PaddleOcr`. Sobre 32 imágenes del dataset de test:
+
+| Resultado | Casos |
+|---|---|
+| Placa de auto leída | 26/26 (100%) |
+| Moto, correctamente sin lectura (`sin_lectura`, no inventa nada) | 2/2 |
+
+Verificado a ojo contra la imagen original en varios casos (p. ej. `T4Y-427`,
+coincide carácter por carácter). Las motos no son un fallo: es el pendiente ya
+conocido de formato de placas de motos (abajo).
+
 ## Despliegue en Lambda
 
 **x86_64, no ARM64.** `paddlepaddle` no publica paquetes aarch64 en PyPI.
-**Python 3.12**: `paddlepaddle` no tiene paquetes para 3.14. Por eso hay dos
-entornos locales en `/data/anpr/venvs/`: `ml-train` (3.14, torch) y `ml-ocr` (3.12, paddle).
 
 ### Simulación de Lambda
 
@@ -293,14 +326,17 @@ el Lambda Runtime Interface Emulator.
 - [x] Vista de puerta generada y verificada a ojo
 - [x] Línea base de `best.pt` — decisión: no reentrenar por ahora
 - [x] Prueba visual de lectura
+- [x] Exportado a ONNX, mAP sin pérdida (0,568 vs 0,555 original)
+- [x] Entorno único (3.12) con `torch` y `paddleocr` juntos; pipeline de
+      producción probado end-to-end: 26/26 autos, 2/2 motos sin lectura falsa
 - [ ] **Benchmark de lectura etiquetado** — ver Pendientes 1
 - [ ] **Medición de píxeles con fotos reales de la cámara Sony** — ver Pendientes 2
-- [ ] Exportar a ONNX y medir mAP — ver Pendientes 4
+- [ ] Probar con una foto tomada por la Sony real (hoy solo imágenes del dataset)
 - [ ] Construir la imagen y probarla con el emulador de Lambda — ver Pendientes 5
 
 ## Pendientes
 
-Actualizado el 2026-09-16. Los dos primeros requieren trabajo manual y son las
+Actualizado el 2026-10-07. Los dos primeros requieren trabajo manual y son las
 mediciones que más pueden cambiar las decisiones siguientes.
 
 ### 1. Benchmark de lectura con placas etiquetadas — lo hace una persona
@@ -314,12 +350,9 @@ todo, la de **placas mal leídas**, que es la métrica que importa para la puert
    se lea a simple vista (y algunos difíciles: de noche, borrosos, en ángulo).
 2. Copiarlos a una carpeta nueva renombrados con su placa real:
    `CUB-604_01.jpg`, `DPD-127_01.jpg`…
-3. Exportar el modelo a ONNX (pendiente 4), instalar ONNX Runtime en el entorno
-   de OCR (no lo trae) y ejecutar:
+3. Con el entorno único ya listo (arriba) y `models/best.onnx` ya exportado:
    ```bash
-   UV_CACHE_DIR=/data/cache/uv VIRTUAL_ENV=/data/anpr/venvs/ml-ocr uv pip install onnxruntime
-   PADDLE_PDX_CACHE_HOME=/data/cache/paddlex \
-   /data/anpr/venvs/ml-ocr/bin/python scripts/benchmark.py --images <carpeta> --model models/best.onnx
+   .venv/bin/python scripts/benchmark.py --images <carpeta> --model models/best.onnx
    ```
 
 **Decide:** si la tasa de mal leídas es aceptable, o si hay que subir
@@ -335,9 +368,12 @@ encuadre, **no la resolución de la Sony**, y el legacy pedía un liveview reduc
 **Cómo:**
 1. Montar la cámara **en su posición definitiva**, con el liveview que se va a usar.
 2. Capturar 20-30 fotos con autos detenidos donde paran de verdad. De día y de noche.
-3. Ejecutar:
+3. Capturar con `edge/tools/connect_camera_wifi.sh` +
+   `edge/.venv/bin/anpr-probe-camera --save-frames 30` (ya probado contra la
+   Sony real el 2026-10-07; faltan fotos con una placa real delante).
+4. Ejecutar:
    ```bash
-   /data/anpr/venvs/ml-train/bin/python scripts/measure_plate_px.py --images <carpeta> --model ../legacy/mqtt-camara-main/best.pt
+   .venv/bin/python scripts/measure_plate_px.py --images <carpeta> --model ../legacy/mqtt-camara-main/best.pt
    ```
 
 **Decide:** si la mediana queda por debajo de ~60-80 px, el cuello de botella es
@@ -349,15 +385,18 @@ encuadre, **no la resolución de la Sony**, y el legacy pedía un liveview reduc
 El dataset incluye motos, que el post-procesado rechaza. Ver
 `contracts/plate-format.md`: decidir si entran motos por la Puerta 2.
 
-### 4. Exportar `best.pt` a ONNX
+### 4. ~~Exportar `best.pt` a ONNX~~ Hecho (2026-10-07)
 
 ```bash
-/data/anpr/venvs/ml-train/bin/python scripts/export_onnx.py \
-    --model ../legacy/mqtt-camara-main/best.pt --data datasets/peru-plates/eval/valtest.yaml
+.venv/bin/python scripts/export_onnx.py \
+    --model ../legacy/mqtt-camara-main/best.pt --data datasets/peru-plates/eval/valtest.yaml \
+    --out metrics/export_onnx.json
 ```
 
-Comprobar que el mAP del ONNX no cae respecto a la línea base (0,555 a 640).
-Necesario para el benchmark y para la imagen de Lambda.
+mAP@50 del ONNX: 0,568 frente a 0,555 del original — sin pérdida. Modelo en
+`models/best.onnx` (ignorado por git, ~77 MB). Validado además con el pipeline
+completo (`scripts/smoke_pipeline.py`): 26/26 autos leídos sobre imágenes reales
+del dataset de test.
 
 ### 5. Construir y probar la imagen de Lambda — con F3
 

@@ -86,11 +86,15 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
 
 ## 4. Modelo de IA (F4)
 
+- [x] **Exportar `best.pt` a ONNX** (2026-10-07): sin pérdida de mAP (0,568 vs 0,555)
+- [x] **Pipeline de producción validado end-to-end** (ONNX + PaddleOCR, mismo código
+      que el Lambda, un solo entorno Python 3.12): 26/26 autos leídos sobre el
+      dataset de test, 2/2 motos correctamente sin lectura falsa. Detalle en `ml/README.md`
 - [ ] **Fotos reales con la Sony desde la puerta** + `measure_plate_px` (¿la placa tiene
-      suficientes píxeles en el liveview?)
+      suficientes píxeles en el liveview?) — la conexión a la cámara ya funciona
+      (`edge/tools/connect_camera_wifi.sh`), falta mostrarle una placa real
 - [ ] Benchmark de lectura con ~30 imágenes etiquetadas
 - [ ] Formato de placas de motos
-- [ ] Exportar `best.pt` a ONNX
 - [ ] Reentrenar solo si las fotos reales lo justifican
 
 ## 5. Nube (F3)

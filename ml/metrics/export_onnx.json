@@ -1,0 +1,15 @@
+{
+  "model": "../legacy/mqtt-camara-main/best.pt",
+  "imgsz": 640,
+  "opset": 17,
+  "pytorch": {
+    "map50": 0.5553792204154646,
+    "map50_95": 0.19218062172436737
+  },
+  "onnx_path": "../legacy/mqtt-camara-main/best.onnx",
+  "onnx": {
+    "map50": 0.5677380351849461,
+    "map50_95": 0.19589937372936647
+  },
+  "map50_delta": -0.01235881476948153
+}
