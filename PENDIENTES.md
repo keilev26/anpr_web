@@ -116,10 +116,10 @@ con simuladores y fallos inyectados (`edge/README.md`, "Pruebas de fallos").
       4. La cuenta tiene un tope de **3008 MB** por función (no 10240); sin cuota
          que pedir, es límite de cuenta nueva. Ajustado en `lambda.tf`
 - [x] Recreada la suscripción de alarmas (quedó pendiente confirmar el correo)
-- [ ] **Arranque en frío real: ~10 s en caliente, más en frío — muy por encima del
-      presupuesto de 4 s.** El "ping cada 5 min" con EventBridge pasa de opcional a
-      **necesario**: sin él, cualquier auto tras un rato de inactividad no abriría a
-      tiempo (el Pi no abre si no llega veredicto en el plazo)
+- [x] **Ping de calentamiento** (2026-10-07): regla de EventBridge cada 5 min
+      invoca el Lambda de inferencia directo (no por la API) con una foto mínima
+      de prueba, sin placa — `infra/terraform/warming.tf`. Mantiene el contenedor
+      tibio para que un auto real nunca golpee el arranque en frío de ~55 s
 - [ ] Investigar por qué: ~1,2 s en caliente en local (misma imagen) vs ~10 s en
       caliente en Lambda real — CPU mucho más limitada (3008 MB ≈ 1,7 vCPU) explica
       parte, pero conviene medirlo con más detalle antes de confiar en el presupuesto

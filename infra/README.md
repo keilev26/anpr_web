@@ -164,7 +164,14 @@ prueba contra AWS real se quedaba en `Status: timeout` a los 60 s exactos, en to
 los intentos — parecía un cuelgue. Subir el timeout a 180 s para diagnosticar (sin
 reconstruir nada) reveló que **sí terminaba, en 55 s**: no era un cuelgue, solo
 necesitaba más margen que el límite original. El timeout quedó de vuelta en 60 s;
-el verdadero arreglo es el ping de calentamiento (ver "Estado").
+el verdadero arreglo es el ping de calentamiento (`infra/terraform/warming.tf`):
+una regla de EventBridge invoca el Lambda de inferencia directo cada 5 min con
+una foto mínima sin placa (no por la API, no gasta la clave del dispositivo),
+solo para mantener cargados en memoria los modelos. No elimina el arranque en
+frío del todo (un pico de tráfico o que AWS recicle el contenedor por su cuenta
+igual lo dispara), pero lo hace raro en vez de constante. Costo: el programador
+es gratis; las invocaciones de calentamiento (~8600/mes) caben en la capa
+gratuita de Lambda.
 
 ### 6. Probar el camino crítico
 
@@ -246,8 +253,8 @@ Desplegado el 2026-09-16 en la cuenta de prueba: **https://d22z1x91kqav4d.cloudf
 - [x] **Modelo subido y camino crítico probado de punta a punta en producción**
       (2026-10-07, pasos 5 y 6): la API real ya lee placas de verdad, no el
       simulador. Cuatro problemas de AWS encontrados y corregidos (tabla arriba)
-- [ ] **Ping de calentamiento (EventBridge, cada 5 min) para el Lambda de
-      inferencia**: pasa de opcional a necesario — en caliente ya tarda 10 s,
-      muy por encima de los 4 s del presupuesto; en frío sería peor
+- [x] **Ping de calentamiento** (2026-10-07): EventBridge cada 5 min mantiene
+      tibio el Lambda de inferencia (`infra/terraform/warming.tf`)
 - [ ] Investigar la diferencia de latencia: ~1,2 s en caliente en local (misma
-      imagen) vs ~10 s en caliente en AWS real
+      imagen) vs ~10 s en caliente en AWS real — probablemente la CPU limitada
+      por el tope de memoria de la cuenta (ver `lambda.tf`, "TOPE DE CUENTA")
